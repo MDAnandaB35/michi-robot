@@ -105,5 +105,4 @@ function FunctionTestView() {
     </main>
   );
 }
-
 export default FunctionTestView;

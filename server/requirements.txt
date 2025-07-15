@@ -1,5 +1,4 @@
 aiofiles
-asyncio
 quart
 motor
 python-dotenv
@@ -13,3 +12,5 @@ openai
 rapidfuzz
 elevenlabs
 gtts
+# Optional: For MySQL support (alpha.py/full_integration.py only)
+# mysql-connector-python

@@ -41,4 +41,14 @@
   color: #888;
 }
 
+/* Ensure main content is not hidden behind the mobile bottom nav bar */
+@media (max-width: 767px) {
+  .main-content-mobile-padding {
+    padding-bottom: 4.5rem; /* slightly more than h-16 */
+  }
+}
 
+/* z-50 for mobile nav bar if needed */
+.z-50 {
+  z-index: 50;
+}
