@@ -53,6 +53,8 @@ class Config:
     MONGODB_DBNAME = os.getenv("MONGODB_DBNAME", "michi_robot")
     MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "chat_logs")
 
+    ALLOWED_CORS_ORIGINS = os.getenv("ALLOWED_CORS_ORIGINS", "http://localhost:5173")
+
 # --- Logging Configuration ---
 logging.basicConfig(
     level=logging.INFO,
@@ -333,7 +335,7 @@ async def agenerate_speech_elevenlabs(text: str, save_path: str) -> None:
 
 # Initialize Quart app and CORS for different origins
 app = Quart(__name__)
-app = cors(app, allow_origin="http://localhost:5173", allow_credentials=True)
+app = cors(app, allow_origin=Config.ALLOWED_CORS_ORIGINS, allow_credentials=True)
 core = Main()
 
 @app.route('/detect_wakeword', methods=['POST'])
