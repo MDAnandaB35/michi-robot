@@ -1,0 +1,15 @@
+aiofiles
+asyncio
+quart
+motor
+python-dotenv
+paho-mqtt
+pydub
+quart-cors
+langchain
+langchain-openai
+langchain-chroma
+openai
+rapidfuzz
+elevenlabs
+gtts
