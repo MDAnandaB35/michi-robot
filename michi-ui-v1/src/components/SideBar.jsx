@@ -20,7 +20,7 @@ const Sidebar = ({ activeView, setActiveView, mobile }) => {
             <button
               key={item.id}
               onClick={() => setActiveView(item.id)}
-              className={`flex flex-col items-center justify-center px-2 py-1 transition-colors duration-200 focus:outline-none ${
+              className={`flex flex-col bg-white items-center justify-center px-2 py-1 transition-colors duration-200 focus:outline-none ${
                 isActive ? "text-lime-600" : "text-gray-500 hover:text-lime-500"
               }`}
             >
