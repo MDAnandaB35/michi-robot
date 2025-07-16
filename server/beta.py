@@ -480,4 +480,7 @@ async def get_chat_logs():
         return jsonify(chat_logs)
 
 if __name__ == '__main__':
+    import os
+    cert_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../cert.pem'))
+    key_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../key.pem'))
     app.run(host="0.0.0.0", port=5000, debug=False)

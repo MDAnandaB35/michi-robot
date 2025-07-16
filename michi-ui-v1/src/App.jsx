@@ -43,8 +43,8 @@ export default function App() {
 
   // Responsive: Sidebar for desktop, BottomNavBar for mobile
   return (
-    <div className="bg-gray-200 h-screen w-screen font-sans">
-      <div className="w-full h-full bg-transparent rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden p-3 md:p-0">
+    <div className="bg-gray-200 h-screen w-screen font-sans overflow-y-auto">
+      <div className="w-full md:h-full bg-transparent rounded-2xl flex flex-col md:flex-row overflow-hidden p-3 pb-20 md:p-0">
         {/* Sidebar (desktop) */}
         <div className="hidden md:block">
           <Sidebar activeView={activeView} setActiveView={setActiveView} />
@@ -60,7 +60,7 @@ export default function App() {
         {/* Main content area */}
         <div className="flex-grow flex flex-col md:flex-row">
           {/* renderActiveView - 60% */}
-          <div className="w-full h-170 md:h-auto md:w-3/5 bg-white rounded-2xl overflow-y-auto md:m-3 px-2 py-5 main-content-mobile-padding">
+          <div className="w-full h-full md:h-auto md:w-3/5 bg-white rounded-2xl md:m-3 px-2 py-5 pb-16 md:pb-0 main-content-mobile-padding">
             {renderActiveView()}
           </div>
           {/* RobotStatus - 40%, hidden on mobile */}
