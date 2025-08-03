@@ -480,23 +480,6 @@ async def get_chat_logs():
         return jsonify(chat_logs)
 
 if __name__ == '__main__':
-    import os
-    from pathlib import Path
-    
-    # Look for SSL certificates in the ssl_certs directory
-    cert_dir = Path(__file__).parent / "ssl_certs"
-    cert_path = cert_dir / "cert.pem"
-    key_path = cert_dir / "key.pem"
-    
-    # Check if certificates exist
-    if cert_path.exists() and key_path.exists():
-        print(f"🔒 Starting server with HTTPS on port 5000")
-        print(f"Certificate: {cert_path}")
-        print(f"Private key: {key_path}")
-        print("⚠️  Note: Using self-signed certificates. Browsers will show security warnings.")
-        app.run(host="0.0.0.0", port=5000, debug=False, ssl_context=(str(cert_path), str(key_path)))
-    else:
-        print("❌ SSL certificates not found!")
-        print("Please run: python generate_ssl_cert.py")
-        print("Or starting without HTTPS...")
-        app.run(host="0.0.0.0", port=5000, debug=False)
+    print("🚀 Starting Michi Chatbot Server on port 5000")
+    print("🔒 HTTPS is handled by AWS load balancer/reverse proxy")
+    app.run(host="0.0.0.0", port=5000, debug=False)

@@ -1,275 +1,193 @@
-# Michi Robot - AI-Powered Voice Assistant
+# Michi Chatbot
 
-A voice-controlled AI assistant built with React frontend and Quart backend, featuring speech-to-text, text-to-speech, and MQTT communication.
+A full-stack AI-powered chatbot and digital tour guide for PT Bintang Toedjoe, featuring:
 
-## Features
+- **React** frontend (Vite)
+- **Python Quart** backend (async, OpenAI, ElevenLabs, MongoDB, MQTT, ChromaDB)
 
-- 🎤 **Voice Recording**: Real-time audio recording with waveform visualization
-- 🤖 **AI Processing**: OpenAI GPT-3.5 for intelligent responses
-- 🔊 **Text-to-Speech**: ElevenLabs integration for natural voice synthesis
-- 📊 **Chat History**: MongoDB integration for conversation logging
-- 🔗 **MQTT Communication**: Real-time communication with IoT devices
-- 🌐 **Cross-Platform**: Works on desktop and mobile browsers
-- 🔒 **HTTPS Support**: Works with IP addresses using self-signed certificates
+---
 
-## Quick Start
+## Project Structure
 
-### Local Development
-
-#### Option 1: Automated Setup (Recommended)
-
-**Windows:**
-
-```bash
-setup_local.bat
+```
+michi-ui/
+├── michi-ui-v1/         # Frontend (React + Vite)
+└── server/              # Backend (Python, Quart, AI, DB)
 ```
 
-**Linux/Mac:**
+---
 
-```bash
-chmod +x setup_local.sh
-./setup_local.sh
-```
+## Prerequisites
 
-#### Option 2: Manual Setup
+- **Node.js** (v16+ recommended)
+- **Python** (3.9+ recommended)
+- **pip** (Python package manager)
+- **git**
+- (For EC2) Ubuntu 20.04/22.04 LTS
 
-1. **Clone the repository**
+---
 
-```bash
-git clone <repository-url>
+## 1. Local Installation
+
+### 1.1. Clone the Repository
+
+```sh
+git clone <your-repo-url>
 cd michi-ui
 ```
 
-2. **Set up backend**
+### 1.2. Backend Setup
 
-```bash
+```sh
 cd server
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install --upgrade pip
 pip install -r requirements.txt
-cp env.local .env.local
-# Edit .env.local with your API keys
-python beta.py
 ```
 
-3. **Set up frontend**
+#### Configure Environment Variables
 
-```bash
+Create a `.env` file in `server/` with:
+
+```
+OPENAI_API_KEY=your_openai_key
+ELEVENLABS_API_KEY=your_elevenlabs_key
+MONGODB_URI=your_mongodb_uri
+# ...other variables as needed
+```
+
+#### Start the Backend
+
+```sh
+python beta.py
+# Or for production:
+hypercorn beta:app --bind 0.0.0.0:5000
+```
+
+### 1.3. Frontend Setup
+
+```sh
 cd ../michi-ui-v1
 npm install
-cp env.local .env.local
-npm run dev
 ```
 
-4. **Access the application**
+#### Start the Frontend
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:5000
-
-### Production Deployment (IP-Only)
-
-#### EC2/VM Setup
-
-1. **SSH into your server**
-
-```bash
-ssh -i your-key.pem ubuntu@your-server-ip
+```sh
+npm run dev -- --host 0.0.0.0
+# Access at http://localhost:5173
 ```
 
-2. **Clone and set up the project**
+---
 
-```bash
-git clone <repository-url>
-cd michi-ui/server
-cp env.example .env
-# Edit .env with your production API keys
+## 2. Deploying on AWS EC2 (Ubuntu)
+
+### 2.1. Launch EC2 Instance
+
+- Use Ubuntu 20.04/22.04 LTS
+- Open ports: 22 (SSH), 5000 (backend), 5173 (frontend) in Security Group
+
+### 2.2. Connect to EC2
+
+```sh
+ssh -i /path/to/key.pem ubuntu@<EC2_PUBLIC_IP>
 ```
 
-3. **Run HTTPS deployment**
+### 2.3. Install System Dependencies
 
-```bash
-chmod +x deploy_https.sh
-./deploy_https.sh
+```sh
+sudo apt update && sudo apt upgrade -y
+sudo apt install python3 python3-pip python3-venv git ffmpeg -y
+sudo apt install nodejs npm -y
 ```
 
-The script will automatically:
+### 2.4. Clone and Set Up Project
 
-- Detect your server IP
-- Install Nginx and create self-signed certificates
-- Configure HTTPS with self-signed certificates
-- Set up the Quart server as a systemd service
-
-4. **Configure frontend**
-
-In your Netlify deployment, set environment variables:
-
-```
-VITE_API_BASE_URL=your-server-ip
-VITE_MQTT_BROKER=broker.emqx.io
-VITE_MQTT_WS_PORT=8084
-VITE_MQTT_PROTOCOL=wss
-VITE_MQTT_TOPIC=testtopic/mwtt
+```sh
+git clone <your-repo-url>
+cd michi-ui
 ```
 
-## Environment Configuration
+#### Backend
 
-### Backend Environment Variables
-
-Create `.env.local` for local development or `.env` for production:
-
-```bash
-# API Keys
-OPENAI_API_KEY=your_openai_api_key
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
-
-# Database
-MONGODB_URI=your_mongodb_connection_string
-MONGODB_DBNAME=michi_robot
-MONGODB_COLLECTION=chat_logs
-
-# CORS (Local: multiple origins, Production: single origin)
-ALLOWED_CORS_ORIGINS=https://michi-robot.netlify.app
-
-# MQTT
-MQTT_BROKER=broker.emqx.io
-MQTT_PORT=1883
-MQTT_TOPIC=testtopic/mwtt
-
-# SSL (Local: false, Production: handled by Nginx)
-USE_SSL=false
+```sh
+cd server
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+# Add your .env file as above
+python beta.py  # Or use hypercorn for production
 ```
 
-### Frontend Environment Variables
+#### Frontend
 
-Create `.env.local` for local development:
-
-```bash
-# Local Development
-VITE_API_BASE_URL=localhost:5000
-
-# Production
-VITE_API_BASE_URL=your-server-ip
-
-# MQTT
-VITE_MQTT_BROKER=broker.emqx.io
-VITE_MQTT_WS_PORT=8084
-VITE_MQTT_PROTOCOL=wss
-VITE_MQTT_TOPIC=testtopic/mwtt
+```sh
+cd ../michi-ui-v1
+npm install
+npm run build
+npm run preview -- --host 0.0.0.0
+# Access at http://<EC2_PUBLIC_IP>:4173
 ```
 
-## API Endpoints
+### 2.5. (Optional) Nginx Reverse Proxy
 
-- `POST /detect_wakeword` - Detect wake word in audio
-- `POST /process_input` - Process voice input and generate response
-- `GET /audio_response` - Stream generated audio response
-- `GET /api/chat-logs` - Retrieve chat history
+- Install Nginx: `sudo apt install nginx -y`
+- Configure to proxy ports 5000 and 4173 as needed
 
-## Architecture
+---
 
-```
-┌─────────────────┐    HTTP/HTTPS    ┌─────────────────┐
-│   React Frontend│ ◄──────────────► │   Quart Backend │
-│   (Vite)        │                  │   (Python)      │
-└─────────────────┘                  └─────────────────┘
-         │                                     │
-         │ MQTT                                │
-         ▼                                     ▼
-┌─────────────────┐                  ┌─────────────────┐
-│   MQTT Broker   │                  │   MongoDB       │
-│   (EMQX)        │                  │   (Database)    │
-└─────────────────┘                  └─────────────────┘
-```
+## 3. Environment Variables
 
-## Security Features
+- Place all sensitive keys in `.env` (never commit to git)
+- Required: `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `MONGODB_URI`, etc.
 
-- ✅ HTTPS encryption (production with self-signed certificates)
-- ✅ CORS protection
-- ✅ Security headers
-- ✅ Environment variable protection
-- ✅ IP-only deployment support
+---
 
-## Important Notes for IP-Only Setup
+## 4. Troubleshooting
 
-### Self-Signed Certificate Warnings
+- **Port not accessible?** Check AWS Security Group and local firewall (e.g., `sudo ufw allow 5000 5173 4173`)
+- **CORS errors?** Ensure backend allows frontend origin in CORS config
+- **Audio not working?** Make sure `ffmpeg` is installed and browser has mic permissions
+- **chroma_db too large?** Only commit the compressed `chroma_db.tar.gz` and add `chroma_db/` to `.gitignore`
 
-When using self-signed certificates:
+---
 
-- Browsers will show security warnings
-- Users need to click "Advanced" → "Proceed to your-server-ip (unsafe)"
-- This is normal for development/testing environments
-- For production, consider getting a domain name for proper SSL certificates
+## 7. Uncompressing `chroma_db.tar.gz` for RAG
 
-### Accepting Self-Signed Certificate
+If you need to use the ChromaDB vector store for Retrieval-Augmented Generation (RAG), you must extract the `chroma_db.tar.gz` archive before running the backend.
 
-When accessing your HTTPS server for the first time:
+### On Linux/macOS
 
-1. Visit `https://your-server-ip` in your browser
-2. You'll see a security warning
-3. Click "Advanced" or "Show Details"
-4. Click "Proceed to your-server-ip (unsafe)"
-5. The certificate will be accepted for future requests
-
-## Troubleshooting
-
-### Local Development Issues
-
-**Port already in use:**
-
-```bash
-# Check what's using the port
-netstat -tulpn | grep :5000
-# Kill the process
-kill -9 <PID>
+```sh
+tar -xzvf server/chroma_db.tar.gz -C server/
 ```
 
-**API key errors:**
+- This will extract the `chroma_db/` folder into the `server/` directory.
 
-- Ensure your `.env.local` file has valid API keys
-- Check that the environment file is in the correct location
+### On Windows (PowerShell)
 
-### Production Issues
-
-**Service not starting:**
-
-```bash
-sudo systemctl status michi-robot
-sudo journalctl -u michi-robot -f
+```powershell
+# In PowerShell, from the project root:
+cd server
+# If you have tar (Windows 10+):
+tar -xzvf chroma_db.tar.gz
+# Or use 7-Zip/WinRAR to extract the archive via GUI
 ```
 
-**SSL certificate issues:**
+**After extraction, ensure that `server/chroma_db/` exists and contains the vector database files before starting the backend.**
 
-```bash
-# Regenerate self-signed certificate
-sudo rm /etc/ssl/certs/nginx-selfsigned.crt /etc/ssl/private/nginx-selfsigned.key
-SERVER_IP=$(hostname -I | awk '{print $1}')
-sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /etc/ssl/private/nginx-selfsigned.key \
-    -out /etc/ssl/certs/nginx-selfsigned.crt \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=$SERVER_IP"
-sudo systemctl reload nginx
-```
+---
 
-**CORS errors:**
+## 5. Useful Commands
 
-- Verify `ALLOWED_CORS_ORIGINS` includes your frontend domain
-- Check that requests are using HTTPS in production
+- **Unstage a file:** `git reset HEAD <file>`
+- **Remove folder from git tracking:** `git rm -r --cached server/chroma_db/`
+- **Push local commits:** `git push origin master`
 
-## Contributing
+---
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally and in production
-5. Submit a pull request
+## 6. Credits
 
-## License
-
-This project is licensed under the MIT License.
-
-## Support
-
-For issues and questions:
-
-1. Check the troubleshooting section
-2. Review the deployment guide in `server/HTTPS_DEPLOYMENT.md`
-3. Open an issue on GitHub
+- Developed by the Michi Capstone Team
+- Powered by OpenAI, ElevenLabs, MongoDB, ChromaDB, MQTT, and Vite
