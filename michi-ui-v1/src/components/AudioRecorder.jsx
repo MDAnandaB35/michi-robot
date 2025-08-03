@@ -246,7 +246,8 @@ export default function AudioRecorderPlayer() {
       } else {
         const json = await res.json();
         if (json.audio_url) {
-          audioURL = new URL(json.audio_url, SERVER_ORIGIN).href;
+          // Construct the full HTTPS URL for the audio response
+          audioURL = `https://${SERVER_ORIGIN}${json.audio_url}`;
         } else {
           throw new Error("Response JSON did not contain audio_url.");
         }
