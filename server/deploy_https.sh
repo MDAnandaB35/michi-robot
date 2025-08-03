@@ -23,7 +23,7 @@ sudo apt install -y nginx certbot python3-certbot-nginx
 echo "⚙️ Creating Nginx configuration..."
 sudo tee /etc/nginx/sites-available/michi-robot << EOF
 server {
-    listen 80;
+    listen 80 default_server;
     server_name $SERVER_IP;
     
     # Redirect all HTTP traffic to HTTPS
@@ -31,7 +31,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl http2 default_server;
     server_name $SERVER_IP;
 
     # SSL Configuration (will be updated by certbot)
