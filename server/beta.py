@@ -53,7 +53,7 @@ class Config:
     MONGODB_DBNAME = os.getenv("MONGODB_DBNAME", "michi_robot")
     MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "chat_logs")
 
-    ALLOWED_CORS_ORIGINS = os.getenv("ALLOWED_CORS_ORIGINS", "https://michi-robot.netlify.app")
+    ALLOWED_CORS_ORIGINS = os.getenv("ALLOWED_CORS_ORIGINS", "http://localhost:5173")
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -335,7 +335,7 @@ async def agenerate_speech_elevenlabs(text: str, save_path: str) -> None:
 
 # Initialize Quart app and CORS for different origins
 app = Quart(__name__)
-app = cors(app, allow_origin=Config.ALLOWED_CORS_ORIGINS, allow_credentials=True)
+app = cors(app, allow_origin="*", allow_credentials=False)
 core = Main()
 
 @app.route('/detect_wakeword', methods=['POST'])
@@ -481,6 +481,22 @@ async def get_chat_logs():
 
 if __name__ == '__main__':
     import os
-    cert_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../cert.pem'))
-    key_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../key.pem'))
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    from pathlib import Path
+    
+    # Look for SSL certificates in the ssl_certs directory
+    cert_dir = Path(__file__).parent / "ssl_certs"
+    cert_path = cert_dir / "cert.pem"
+    key_path = cert_dir / "key.pem"
+    
+    # Check if certificates exist
+    if cert_path.exists() and key_path.exists():
+        print(f"🔒 Starting server with HTTPS on port 5000")
+        print(f"Certificate: {cert_path}")
+        print(f"Private key: {key_path}")
+        print("⚠️  Note: Using self-signed certificates. Browsers will show security warnings.")
+        app.run(host="0.0.0.0", port=5000, debug=False, ssl_context=(str(cert_path), str(key_path)))
+    else:
+        print("❌ SSL certificates not found!")
+        print("Please run: python generate_ssl_cert.py")
+        print("Or starting without HTTPS...")
+        app.run(host="0.0.0.0", port=5000, debug=False)
