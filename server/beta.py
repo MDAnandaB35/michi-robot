@@ -335,7 +335,7 @@ async def agenerate_speech_elevenlabs(text: str, save_path: str) -> None:
 
 # Initialize Quart app and CORS for different origins
 app = Quart(__name__)
-app = cors(app, allow_origin=Config.ALLOWED_CORS_ORIGINS, allow_credentials=True)
+app = cors(app, allow_origin="*", allow_credentials=True)
 core = Main()
 
 @app.route('/detect_wakeword', methods=['POST'])
