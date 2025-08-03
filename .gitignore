@@ -237,3 +237,7 @@ dmypy.json
 # Project specific
 data/
 *.pdf 
+
+#debug files
+full_integration_test.py
+send_audio.py
