@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import mqtt from "mqtt";
 
 const MQTT_BROKER = import.meta.env.VITE_MQTT_BROKER || "broker.emqx.io";
-const MQTT_WS_PORT = import.meta.env.VITE_MQTT_WS_PORT || "8083"; // WS port!
-const MQTT_PROTOCOL = import.meta.env.VITE_MQTT_PROTOCOL || "ws"; // "wss" if TLS
+const MQTT_WS_PORT = import.meta.env.VITE_MQTT_WS_PORT || "8084"; // WSS port!
+const MQTT_PROTOCOL = import.meta.env.VITE_MQTT_PROTOCOL || "wss"; // "wss" for secure connections
 const MQTT_TOPIC = import.meta.env.VITE_MQTT_TOPIC || "testtopic/mwtt";
 
 const MQTT_BROKER_URL = `${MQTT_PROTOCOL}://${MQTT_BROKER}:${MQTT_WS_PORT}/mqtt`;
