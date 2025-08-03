@@ -10,6 +10,7 @@ A voice-controlled AI assistant built with React frontend and Quart backend, fea
 - 📊 **Chat History**: MongoDB integration for conversation logging
 - 🔗 **MQTT Communication**: Real-time communication with IoT devices
 - 🌐 **Cross-Platform**: Works on desktop and mobile browsers
+- 🔒 **HTTPS Support**: Works with IP addresses using self-signed certificates
 
 ## Quick Start
 
@@ -65,7 +66,7 @@ npm run dev
 - Frontend: http://localhost:5173
 - Backend: http://localhost:5000
 
-### Production Deployment
+### Production Deployment (IP-Only)
 
 #### EC2/VM Setup
 
@@ -88,12 +89,19 @@ cp env.example .env
 
 ```bash
 chmod +x deploy_https.sh
-nano deploy_https.sh  # Edit email and paths
 ./deploy_https.sh
 ```
 
+The script will automatically:
+
+- Detect your server IP
+- Install Nginx and create self-signed certificates
+- Configure HTTPS with self-signed certificates
+- Set up the Quart server as a systemd service
+
 4. **Configure frontend**
-   In your Netlify deployment, set environment variables:
+
+In your Netlify deployment, set environment variables:
 
 ```
 VITE_API_BASE_URL=your-server-ip
@@ -174,11 +182,32 @@ VITE_MQTT_TOPIC=testtopic/mwtt
 
 ## Security Features
 
-- ✅ HTTPS encryption (production)
+- ✅ HTTPS encryption (production with self-signed certificates)
 - ✅ CORS protection
 - ✅ Security headers
-- ✅ Automatic SSL certificate renewal
 - ✅ Environment variable protection
+- ✅ IP-only deployment support
+
+## Important Notes for IP-Only Setup
+
+### Self-Signed Certificate Warnings
+
+When using self-signed certificates:
+
+- Browsers will show security warnings
+- Users need to click "Advanced" → "Proceed to your-server-ip (unsafe)"
+- This is normal for development/testing environments
+- For production, consider getting a domain name for proper SSL certificates
+
+### Accepting Self-Signed Certificate
+
+When accessing your HTTPS server for the first time:
+
+1. Visit `https://your-server-ip` in your browser
+2. You'll see a security warning
+3. Click "Advanced" or "Show Details"
+4. Click "Proceed to your-server-ip (unsafe)"
+5. The certificate will be accepted for future requests
 
 ## Troubleshooting
 
@@ -210,8 +239,14 @@ sudo journalctl -u michi-robot -f
 **SSL certificate issues:**
 
 ```bash
-sudo certbot renew
-sudo systemctl restart nginx
+# Regenerate self-signed certificate
+sudo rm /etc/ssl/certs/nginx-selfsigned.crt /etc/ssl/private/nginx-selfsigned.key
+SERVER_IP=$(hostname -I | awk '{print $1}')
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/nginx-selfsigned.key \
+    -out /etc/ssl/certs/nginx-selfsigned.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=$SERVER_IP"
+sudo systemctl reload nginx
 ```
 
 **CORS errors:**

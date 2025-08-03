@@ -1,11 +1,15 @@
 #!/bin/bash
 
-# HTTPS Deployment Script for EC2
+# HTTPS Deployment Script for EC2 (IP-only setup)
 # This script sets up HTTPS for your Quart server using Nginx and Let's Encrypt
 
 set -e  # Exit on any error
 
-echo "🚀 Starting HTTPS deployment for Michi Robot..."
+echo "🚀 Starting HTTPS deployment for Michi Robot (IP-only setup)..."
+
+# Get the server IP address
+SERVER_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || hostname -I | awk '{print $1}')
+echo "📡 Detected server IP: $SERVER_IP"
 
 # Update system packages
 echo "📦 Updating system packages..."
@@ -20,7 +24,7 @@ echo "⚙️ Creating Nginx configuration..."
 sudo tee /etc/nginx/sites-available/michi-robot << EOF
 server {
     listen 80;
-    server_name 18.142.229.32;
+    server_name $SERVER_IP;
     
     # Redirect all HTTP traffic to HTTPS
     return 301 https://\$server_name\$request_uri;
@@ -28,11 +32,11 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name 18.142.229.32;
+    server_name $SERVER_IP;
 
     # SSL Configuration (will be updated by certbot)
-    ssl_certificate /etc/letsencrypt/live/18.142.229.32/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/18.142.229.32/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$SERVER_IP/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$SERVER_IP/privkey.pem;
     
     # SSL Security Settings
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -85,13 +89,38 @@ echo "🚀 Starting Nginx..."
 sudo systemctl start nginx
 sudo systemctl enable nginx
 
-# Get SSL certificate using Let's Encrypt
-echo "🔐 Obtaining SSL certificate..."
-sudo certbot --nginx -d 18.142.229.32 --non-interactive --agree-tos --email your-email@example.com
+# Get SSL certificate using Let's Encrypt (IP-only)
+echo "🔐 Obtaining SSL certificate for IP address..."
+echo "⚠️  Note: Let's Encrypt may not work with IP addresses. Trying anyway..."
 
-# Set up automatic renewal
-echo "🔄 Setting up automatic certificate renewal..."
-sudo crontab -l 2>/dev/null | { cat; echo "0 12 * * * /usr/bin/certbot renew --quiet"; } | sudo crontab -
+# Try to get certificate for IP
+if sudo certbot --nginx -d $SERVER_IP --non-interactive --agree-tos --email admin@example.com; then
+    echo "✅ SSL certificate obtained successfully!"
+else
+    echo "⚠️  Let's Encrypt failed for IP address. This is expected."
+    echo "🔧 Creating self-signed certificate for development..."
+    
+    # Create self-signed certificate
+    sudo mkdir -p /etc/ssl/private
+    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/ssl/private/nginx-selfsigned.key \
+        -out /etc/ssl/certs/nginx-selfsigned.crt \
+        -subj "/C=US/ST=State/L=City/O=Organization/CN=$SERVER_IP"
+    
+    # Update Nginx configuration to use self-signed certificate
+    sudo sed -i "s|ssl_certificate /etc/letsencrypt/live/$SERVER_IP/fullchain.pem;|ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;|g" /etc/nginx/sites-available/michi-robot
+    sudo sed -i "s|ssl_certificate_key /etc/letsencrypt/live/$SERVER_IP/privkey.pem;|ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;|g" /etc/nginx/sites-available/michi-robot
+    
+    # Reload Nginx
+    sudo systemctl reload nginx
+    echo "✅ Self-signed certificate created and configured!"
+fi
+
+# Set up automatic renewal (only if Let's Encrypt worked)
+if [ -d "/etc/letsencrypt/live/$SERVER_IP" ]; then
+    echo "🔄 Setting up automatic certificate renewal..."
+    sudo crontab -l 2>/dev/null | { cat; echo "0 12 * * * /usr/bin/certbot renew --quiet"; } | sudo crontab -
+fi
 
 # Create systemd service for your Quart app
 echo "📋 Creating systemd service for Quart app..."
@@ -124,5 +153,7 @@ echo "📊 Checking service status..."
 sudo systemctl status michi-robot --no-pager
 
 echo "✅ HTTPS deployment completed!"
-echo "🌐 Your server should now be accessible at: https://18.142.229.32"
-echo "📝 Don't forget to update your frontend to use HTTPS URLs!" 
+echo "🌐 Your server should now be accessible at: https://$SERVER_IP"
+echo "⚠️  Note: If using self-signed certificate, browsers will show a security warning."
+echo "📝 Don't forget to update your frontend to use HTTPS URLs!"
+echo "🔧 To accept self-signed certificate in browser, visit https://$SERVER_IP and accept the warning." 
