@@ -95,7 +95,7 @@ class Timer:
 class Main:
     def __init__(self):
         with Timer("Main initialization"):
-            self.llm = ChatOpenAI(temperature=0.6, model="GPT-4.1 nano") # LLM Model
+            self.llm = ChatOpenAI(temperature=0.6, model="gpt-4.1-nano-2025-04-14") # LLM Model
             self.embeddings_model = OpenAIEmbeddings(model="text-embedding-3-large") # Embedding Model
             self.vector_store = Chroma(
                 collection_name="example_collection",
