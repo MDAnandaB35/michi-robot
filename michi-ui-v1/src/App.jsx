@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Sidebar from "./components/SideBar";
 import FunctionTestView from "./components/FunctionTestView";
 import RobotStatus from "./components/RobotStatus";
 import AudioRecorder from "./components/AudioRecorder";
 import ChatLogs from "./components/ChatLogs";
+import Login from "./components/Login";
+import { LogOut, User } from "lucide-react";
 
 const PlaceholderView = ({ title }) => (
   <main className="flex-1 p-8">
@@ -20,9 +23,30 @@ const PlaceholderView = ({ title }) => (
   </main>
 );
 
+// User profile component
+const UserProfile = ({ user, onLogout }) => (
+  <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm">
+    <div className="h-10 w-10 bg-indigo-600 rounded-full flex items-center justify-center">
+      <User className="h-5 w-5 text-white" />
+    </div>
+    <div className="flex-1">
+      <p className="text-sm font-medium text-gray-900">{user?.userName}</p>
+      <p className="text-xs text-gray-500">Logged in</p>
+    </div>
+    <button
+      onClick={onLogout}
+      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+      title="Logout"
+    >
+      <LogOut className="h-5 w-5" />
+    </button>
+  </div>
+);
+
 // Main App component that structures the entire page
-export default function App() {
+const AppContent = () => {
   const [activeView, setActiveView] = useState("functionTest");
+  const { user, loading, logout, isAuthenticated } = useAuth();
 
   const renderActiveView = () => {
     switch (activeView) {
@@ -40,6 +64,23 @@ export default function App() {
         return <FunctionTestView />;
     }
   };
+
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-200 flex items-center justify-center">
+        <div className="flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <span className="text-gray-600">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   // Responsive: Sidebar for desktop, BottomNavBar for mobile
   return (
@@ -65,10 +106,22 @@ export default function App() {
           </div>
           {/* RobotStatus - 40%, hidden on mobile */}
           <div className="hidden md:block w-2/5 m-3 max-h-screen">
-            <RobotStatus />
+            <div className="space-y-3">
+              <UserProfile user={user} onLogout={logout} />
+              <RobotStatus />
+            </div>
           </div>
         </div>
       </div>
     </div>
+  );
+};
+
+// Wrapper component with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

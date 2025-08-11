@@ -1,12 +1,88 @@
-# React + Vite
+# Michi UI v1
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based frontend for the Michi Chatbot with authentication system.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🔐 **Authentication System**: Login and registration with JWT tokens
+- 📱 **Responsive Design**: Works on desktop and mobile devices
+- 🎨 **Modern UI**: Built with Tailwind CSS and Lucide React icons
+- 🔄 **Real-time Updates**: MQTT integration for real-time communication
+- 📊 **Chat Logs**: View and manage conversation history
+- 🎤 **Audio Recording**: Voice input capabilities
 
-## Expanding the ESLint configuration
+## Setup
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+
+1. **Backend Server**: Make sure the MongoDB backend is running on port 3000
+2. **Node.js**: Version 16 or higher
+
+### Installation
+
+1. **Install Dependencies**:
+
+   ```bash
+   npm install
+   ```
+
+2. **Start Development Server**:
+
+   ```bash
+   npm run dev
+   ```
+
+3. **Open Browser**: Navigate to `http://localhost:5173`
+
+## Authentication
+
+The app includes a complete authentication system:
+
+- **Login**: Sign in with username and password
+- **Registration**: Create new user accounts
+- **JWT Tokens**: Secure authentication with automatic token management
+- **Protected Routes**: All main features require authentication
+
+### API Endpoints Used
+
+- `POST /register` - Create new user account
+- `POST /login` - Authenticate user
+- `GET /me` - Get current user information
+
+## Project Structure
+
+```
+src/
+├── API/
+│   └── authApi.js          # Authentication API service
+├── components/
+│   ├── Login.jsx           # Login/Registration component
+│   ├── SideBar.jsx         # Navigation sidebar
+│   ├── FunctionTestView.jsx # Main chat interface
+│   ├── AudioRecorder.jsx   # Voice recording component
+│   ├── ChatLogs.jsx        # Chat history component
+│   └── RobotStatus.jsx     # Robot status display
+├── context/
+│   └── AuthContext.jsx     # Authentication context
+└── App.jsx                 # Main application component
+```
+
+## Environment Variables
+
+The frontend connects to the backend at `http://localhost:3000` by default. If you need to change this, update the `API_BASE_URL` in `src/API/authApi.js`.
+
+## Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+
+## Technologies Used
+
+- **React 19** - UI framework
+- **Vite** - Build tool and dev server
+- **Tailwind CSS** - Styling
+- **Axios** - HTTP client
+- **Lucide React** - Icons
+- **MQTT** - Real-time messaging

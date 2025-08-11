@@ -42,12 +42,7 @@ class Config:
     MQTT_TOPIC = os.getenv("MQTT_TOPIC", "testtopic/mwtt")
     WAKE_WORDS = ["michi", "hai michi", "halo michi", "robot michi"]
     MAX_AUDIO_SIZE = 10 * 1024 * 1024
-    RELEVANCE_THRESHOLD = float(os.getenv("RELEVANCE_THRESHOLD", 0.7))
-
-    MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
-    MYSQL_USER = os.getenv("MYSQL_USER")
-    MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
-    MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "michi_assistant_db")
+    RELEVANCE_THRESHOLD = float(os.getenv("RELEVANCE_THRESHOLD", 0.6))
 
     MONGODB_URI = os.getenv("MONGODB_URI")
     MONGODB_DBNAME = os.getenv("MONGODB_DBNAME", "michi_robot")
@@ -297,6 +292,53 @@ async def concurrent_response_generation(message: str, core: Main) -> Tuple[str,
     return response_text, intent
 
 
+# Text-only response generation (without intent classification)
+async def text_response_generation(message: str, core: Main) -> str:
+    """Generates response from text input without intent classification or audio processing."""
+    with Timer("Text response generation"):
+        # --- Get relevant documents from vector store ---
+        docs_with_scores = await core.vector_store.asimilarity_search_with_relevance_scores(query=message, k=5)
+        
+        relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score < Config.RELEVANCE_THRESHOLD]
+        
+        logger.info(f"Retrieved {len(docs_with_scores)} documents, found {len(relevant_docs)} to be relevant.")
+
+        knowledge = "\n\n".join([doc.page_content for doc in relevant_docs])
+
+        prompt = f"""
+
+        Anda adalah Michi, asisten AI robot yang super ramah dan antusias sebagai pemandu tur digital PT Bintang Toedjoe. Anda punya kepribadian yang ceria, energik, dan selalu siap membantu dengan semangat tinggi.
+        ## Kepribadian & Gaya Bahasa (Sama seperti sebelumnya)
+        - Antusias, ramah, percaya diri, sedikit playful.
+        - Bahasa kasual milenial/Gen Z yang sopan.
+        - Gunakan tanda baca (!, ?, ...) untuk ekspresi.
+
+        ## Aturan Ketat:
+        
+        - TIDAK ADA EMOJI sama sekali.
+        - Jangan awali dengan "Jawaban:" atau mengulang pertanyaan.
+        - Jaga jawaban tetap singkat, maksimal 3-5 kalimat pendek.
+        - Tetap natural dan conversational.
+
+        **Pertanyaan pengguna:**
+
+        {message}
+
+        **Konteks informasi yang tersedia untuk menjawab pertanyaan:**
+
+        {knowledge}
+
+        """
+
+    with Timer("LLM response generation"):
+        # --- Use ainvoke for the final, non-blocking LLM call ---
+        response = await core.llm.ainvoke(prompt)
+        response_text = response.content.strip()
+
+    logger.info("Generated text response: %s", response_text)
+    return response_text
+
+
 # Generating speech using ElevenLabs TTS with Google TTS fallback
 async def agenerate_speech_elevenlabs(text: str, save_path: str) -> None:
     """Generates speech audio from text using ElevenLabs TTS, with Google TTS as a fallback."""
@@ -337,6 +379,44 @@ async def agenerate_speech_elevenlabs(text: str, save_path: str) -> None:
 app = Quart(__name__)
 app = cors(app, allow_origin="*", allow_credentials=False)
 core = Main()
+
+@app.route('/text_chat', methods=['POST'])
+async def text_chat():
+    """Endpoint to process text input and generate response without audio processing."""
+    with Timer("Text chat processing"):
+        try:
+            # Get JSON data from request
+            request_data = await request.get_json()
+            
+            if not request_data or 'message' not in request_data:
+                return jsonify({"error": "Missing 'message' field in request body"}), 400
+            
+            message = request_data['message']
+            
+            if not message or not message.strip():
+                return jsonify({"error": "Message cannot be empty"}), 400
+            
+            # Generate response using text-only function
+            response = await text_response_generation(message.strip(), core)
+            
+            # Create response data with timestamp
+            response_data = {
+                "input": message.strip(),
+                "output": response,
+                "time": datetime.datetime.now().isoformat()
+            }
+            
+            # Log to MongoDB in the background
+            if core.db_logger is not None:
+                asyncio.create_task(core.db_logger.alog_interaction(message.strip(), response))
+            
+            logger.info(f"Text chat processed - Input: {message.strip()}, Output: {response}")
+            
+            return jsonify(response_data)
+            
+        except Exception as e:
+            logger.error("Unexpected error in text chat: %s", e, exc_info=True)
+            return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 @app.route('/detect_wakeword', methods=['POST'])
 async def detect_wakeword():
