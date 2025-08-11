@@ -80,7 +80,7 @@ const Login = () => {
     currentImage = "/michiright.png";
   } else if (mouseDirection === "stationary") {
     // If stationary, use the half-screen logic
-    currentImage = isRightHalf ? "/michi2.png" : "/michigreeting.png";
+    currentImage = isRightHalf ? "/michiwave.png" : "/michigreeting.png";
   }
 
   const handleInputChange = (e) => {
