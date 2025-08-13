@@ -1,18 +1,8 @@
 import axios from 'axios';
 
 const API_BASE_URL = (() => {
+  // Check both AUTH_ORIGIN and AUTH_ORIGIN for flexibility
   const origin = import.meta.env.AUTH_ORIGIN;
-  if (!origin) return 'http://localhost:3000';
-  
-  // If origin already has protocol, return as is
-  if (origin.startsWith('http://') || origin.startsWith('https://')) {
-    return origin;
-  }
-  
-  // Check if it's localhost (use http) or external domain (use https)
-  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-    return `http://${origin}`;
-  }
   
   // For external domains, use https
   return `https://${origin}`;
