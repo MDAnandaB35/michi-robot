@@ -135,16 +135,21 @@ class IntentClassifier:
             prompt = f"""
                 Klasifikasikan niat (intent) dari input pengguna ke dalam salah satu kategori berikut, berdasarkan konteks dan makna ucapan:
 
+                **PENTING**: Jika pengguna menanyakan "apa ini", "ini apa", "produk apa ini", "identifikasi produk", atau pertanyaan serupa tentang identifikasi benda/produk, gunakan intent "deteksi". JANGAN gunakan "talk" untuk pertanyaan identifikasi produk.
+
                 - dance = jika pengguna menyuruh untuk joget, menari, atau ekspresi kegembiraan fisik.
                 - sleep = jika pengguna menyuruh untuk tidur, diam, istirahat, atau mode standby.
-                - talk = jika pengguna mengajak bicara, bertanya sesuatu, atau melakukan percakapan biasa.
+                - talk = jika pengguna bertanya tentang informasi umum, sejarah, fakta, atau hal-hal yang memerlukan pengetahuan luas (BUKAN tentang identifikasi produk/benda).
                 - happy = jika pengguna memuji, mengapresiasi, atau memberikan pujian positif.
                 - mad = jika pengguna marah, menghina, menyindir kasar, atau menunjukkan emosi negatif.
                 - sad = jika pengguna menyampaikan kesedihan, kekecewaan, atau suasana hati yang buruk.
+                - goodbye = jika pengguna mengucapkan selamat tinggal, sampai jumpa, atau ucapan penutup.
+                - introduction = jika pengguna memperkenalkan diri, memperkenalkan Michi, atau memperkenalkan diri sebagai Michi.
+                - deteksi = jika pengguna menanyakan "apa ini", "ini apa", "produk apa ini", "ini itu apa", atau pertanyaan serupa yang meminta identifikasi/penjelasan tentang suatu benda/produk.
 
                 **Peraturan jawaban**:
                 - Hanya jawab dengan **satu kata** dari daftar di atas (tanpa penjelasan).
-                - Jawaban harus **tepat satu kata**: `dance`, `sleep`, `talk`, `happy`, `mad`, atau `sad`.
+                - Jawaban harus **tepat satu kata**: `dance`, `sleep`, `talk`, `happy`, `mad`, `sad`, `goodbye`, `introduction`, atau `deteksi`.
 
                 Contoh:
                 Input: "Kamu keren banget!"
@@ -165,6 +170,63 @@ class IntentClassifier:
                 Input: "Siapa nama pendiri PT Bintang Tujuh?"
                 Output: talk
 
+                Input: "Michi, identifikasi produk ini dong"
+                Output: deteksi
+
+                Input: "apa ini?"
+                Output: deteksi
+
+                Input: "ini apa ya?"
+                Output: deteksi
+
+                Input: "ini itu produk apa ya?"
+                Output: deteksi
+
+                Input: "Ini itu apa sih?"
+                Output: deteksi
+
+                Input: "Ini itu produk apa sih?"
+                Output: deteksi
+
+                Input: "Ini apa sih?"
+                Output: deteksi
+
+                Input: "Lihat dong, ini produk apa?"
+                Output: deteksi
+
+                Input: "Identifikasi produk ini dong"
+                Output: deteksi
+
+                Input: "Identifikasi produk ini"
+                Output: deteksi
+
+                Input: "Produk apa ini?"
+                Output: deteksi
+
+                Input: "Bisa jelaskan produk ini?"
+                Output: deteksi
+
+                Input: "Michi, selamat tinggal."
+                Output: goodbye
+
+                Input: "sampai jumpa."
+                Output: goodbye
+
+                Input: "dadah."
+                Output: goodbye
+
+                Input: "Michi, perkenalkan diri kamu."
+                Output: introduction
+
+                Input: "kamu itu siapa?"
+                Output: introduction
+
+                Input: "kamu siapa?"
+                Output: introduction
+
+                Input: "kamu siapa ya?"
+                Output: introduction
+
                 Input: "{message}"
                 Output:
                 """
@@ -173,7 +235,7 @@ class IntentClassifier:
                 # --- ASYNC CHANGE: Use ainvoke for non-blocking LLM call ---
                 response = await self.llm.ainvoke(prompt)
                 content = response.content.strip().lower()
-                return content if content in ["dance", "mad", "sad", "sleep", "happy", "talk"] else "talk"
+                return content if content in ["dance", "mad", "sad", "sleep", "happy", "talk", "goodbye", "introduction", "deteksi"] else "talk"
             except OpenAIError as e:
                 logger.error(f"LLM intent classification failed: {e}")
                 return "talk"
