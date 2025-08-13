@@ -101,7 +101,7 @@ const AppContent = () => {
         {/* Main content area */}
         <div className="flex-grow flex flex-col md:flex-row">
           {/* renderActiveView - 60% */}
-          <div className="w-full h-full md:h-auto md:w-3/5 bg-white rounded-2xl md:m-3 px-2 py-5 pb-16 md:pb-0 main-content-mobile-padding">
+          <div className="w-full h-full md:h-auto md:w-3/5 bg-white rounded-2xl md:m-3 px-2 py-5 main-content-mobile-padding">
             {renderActiveView()}
           </div>
           {/* RobotStatus - 40%, hidden on mobile */}
