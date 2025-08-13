@@ -5,7 +5,7 @@ const API_BASE_URL = (() => {
   const origin = import.meta.env.AUTH_ORIGIN;
   
   // For external domains, use https
-  return `https://${origin}`;
+  return `https://api.michi-robot.site:3001`;
 })();
 
 // Create axios instance with base configuration
