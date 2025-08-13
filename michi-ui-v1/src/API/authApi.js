@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.AUTH_ORIGIN;
+const API_BASE_URL = (() => {
+  const origin = import.meta.env.AUTH_ORIGIN;
+  return `https://${origin}`;
+})();
 
 // Create axios instance with base configuration
 const authApi = axios.create({
