@@ -279,7 +279,7 @@ export default function AudioRecorderPlayer() {
 
   // --- UI Render ---
   return (
-    <div className="flex flex-col items-center  min-h-screen text-black font-sans p-4">
+    <div className="flex flex-col items-center md:min-h-screen text-black font-sans p-4">
       <div className="w-full bg-white rounded-3xl qp-6 space-y-6">
         {/* Header and Status */}
         <div className="text-center">
