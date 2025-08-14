@@ -1,11 +1,8 @@
 import axios from 'axios';
 
 const API_BASE_URL = (() => {
-  // Check both AUTH_ORIGIN and AUTH_ORIGIN for flexibility
-  const origin = import.meta.env.AUTH_ORIGIN;
-  
-  // For external domains, use https
-  return `https://18.143.78.82:3001`;
+  const origin = import.meta.env.VITE_AUTH_ORIGIN;
+  return origin;
 })();
 
 // Create axios instance with base configuration
@@ -44,12 +41,6 @@ authApi.interceptors.response.use(
 );
 
 export const authService = {
-  // Register a new user
-  register: async (userData) => {
-    const response = await authApi.post('/register', userData);
-    return response.data;
-  },
-
   // Login user
   login: async (credentials) => {
     const response = await authApi.post('/login', credentials);

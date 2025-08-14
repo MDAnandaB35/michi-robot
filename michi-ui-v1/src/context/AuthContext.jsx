@@ -48,17 +48,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (userData) => {
-    try {
-      setError(null);
-      const response = await authService.register(userData);
-      return response;
-    } catch (error) {
-      setError(error.response?.data?.message || "Registration failed");
-      throw error;
-    }
-  };
-
   const logout = () => {
     authService.logout();
     setUser(null);
@@ -70,7 +59,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     login,
-    register,
     logout,
     isAuthenticated: !!user,
   };

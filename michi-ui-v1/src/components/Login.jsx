@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-import { User, Lock, Mail, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
 
 const Login = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     userName: "",
@@ -18,7 +17,7 @@ const Login = () => {
   const lastMouseX = useRef(0);
   const moveTimeoutId = useRef(null);
 
-  const { login, register, error } = useAuth();
+  const { login, error } = useAuth();
 
   // This effect now runs only once on mount
   useEffect(() => {
@@ -95,17 +94,10 @@ const Login = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        await login({
-          username: formData.userName,
-          password: formData.password,
-        });
-      } else {
-        await register(formData);
-        // After successful registration, switch to login
-        setIsLogin(true);
-        setFormData({ userName: "", password: "" });
-      }
+      await login({
+        username: formData.userName,
+        password: formData.password,
+      });
     } catch (error) {
       console.error("Auth error:", error);
     } finally {
@@ -113,20 +105,23 @@ const Login = () => {
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setFormData({ userName: "", password: "" });
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4 relative overflow-hidden">
+    <div
+      className="min-h-screen flex items-center justify-end p-4 relative overflow-hidden"
+      style={{
+        backgroundImage: "url(/background.png)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       {/* Michi image that follows mouse horizontally */}
       <div
-        className="fixed pointer-events-none z-10 transition-transform duration-100 ease-out"
+        className="hidden md:block fixed pointer-events-none z-10 transition-transform duration-100 ease-out"
         style={{
-          left: `${mouseX - 50}px`, // Center the image on mouse (assuming 100px width)
-          top: "50%",
-          transform: "translateY(-50%)",
+          left: `${mouseX - 50}px`,
+          bottom: "-30px", // Stick to the very bottom
+          transform: "none",
         }}
       >
         <img
@@ -136,123 +131,113 @@ const Login = () => {
         />
       </div>
 
-      <div className="max-w-md w-full space-y-8 relative z-20">
-        {/* Header */}
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
-            <User className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900">
-            {isLogin ? "お帰りなさい!" : "Create Account"}
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            {isLogin
-              ? "Welcome back, マスター!"
-              : "Join us and start your journey"}
-          </p>
-        </div>
-
+      <div className="max-w-md w-full space-y-8 relative z-20 md:mb-40 md:mr-40">
         {/* Form */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username Field */}
-            <div>
-              <label
-                htmlFor="userName"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Robot ID
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="userName"
-                  name="userName"
-                  type="text"
-                  required
-                  value={formData.userName}
-                  onChange={handleInputChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-blue-700"
-                  placeholder="Enter your username"
-                />
-              </div>
+        <div className="relative rounded-lg p-8">
+          {/* Background image */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src="/loginHolder.png"
+              alt="Login Form Background"
+              className="w-full h-full object-contain scale-140"
+            />
+          </div>
+          {/* Form content */}
+          <div className="relative z-10 rounded-lg p-15">
+            {/* Logo */}
+            <div className="flex justify-start mb-6 mt-5">
+              <img
+                src="/webTitle.png"
+                alt="Michi Logo"
+                className="h-30 w-auto"
+              />
             </div>
 
-            {/* Password Field */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-blue-700"
-                  placeholder="Enter your password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Username Field */}
+              <div>
+                <label
+                  htmlFor="userName"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {isLogin ? "Signing in..." : "Creating account..."}
+                  Robot ID
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="userName"
+                    name="userName"
+                    type="text"
+                    required
+                    value={formData.userName}
+                    onChange={handleInputChange}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-blue-700 backdrop-blur-[1px]"
+                    placeholder="Enter your username"
+                  />
                 </div>
-              ) : isLogin ? (
-                "Sign In"
-              ) : (
-                "Create Account"
-              )}
-            </button>
-          </form>
+              </div>
 
-          {/* Toggle Mode */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
+              {/* Password Field */}
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="block w-full pl-10 pr-12 py-3 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-blue-700 backdrop-blur-[1px]"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
+              )}
+
+              {/* Submit Button */}
               <button
-                onClick={toggleMode}
-                className="ml-1 font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isLogin ? "Sign up" : "Sign in"}
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  "Sign In"
+                )}
               </button>
-            </p>
+            </form>
           </div>
         </div>
 

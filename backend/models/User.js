@@ -19,6 +19,6 @@ const userSchema = new mongoose.Schema({
 });
 
 // Use environment variable for collection name, fallback to 'users'
-const collectionName = process.env.USERS_COLLECTION || 'users';
+const collectionName = process.env.USERS_COLLECTION;
 
 module.exports = mongoose.model('User', userSchema, collectionName);

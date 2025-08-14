@@ -48,8 +48,6 @@ class Config:
     MONGODB_DBNAME = os.getenv("MONGODB_DBNAME", "michi_robot")
     MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "chat_logs")
 
-    ALLOWED_CORS_ORIGINS = os.getenv("ALLOWED_CORS_ORIGINS", "http://localhost:5173")
-
 # --- Logging Configuration ---
 logging.basicConfig(
     level=logging.INFO,

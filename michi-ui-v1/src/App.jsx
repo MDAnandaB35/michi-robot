@@ -6,7 +6,7 @@ import RobotStatus from "./components/RobotStatus";
 import AudioRecorder from "./components/AudioRecorder";
 import ChatLogs from "./components/ChatLogs";
 import Login from "./components/Login";
-import { LogOut, User } from "lucide-react";
+import Admin from "./components/Admin";
 
 const PlaceholderView = ({ title }) => (
   <main className="flex-1 p-8">
@@ -23,32 +23,35 @@ const PlaceholderView = ({ title }) => (
   </main>
 );
 
-// User profile component
-const UserProfile = ({ user, onLogout }) => (
-  <div className="flex items-center space-x-3 p-4 bg-white rounded-lg shadow-sm">
-    <div className="h-10 w-10 bg-indigo-600 rounded-full flex items-center justify-center">
-      <User className="h-5 w-5 text-white" />
-    </div>
-    <div className="flex-1">
-      <p className="text-sm font-medium text-gray-900">{user?.userName}</p>
-      <p className="text-xs text-gray-500">Logged in</p>
-    </div>
-    <button
-      onClick={onLogout}
-      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-      title="Logout"
-    >
-      <LogOut className="h-5 w-5" />
-    </button>
-  </div>
-);
-
 // Main App component that structures the entire page
 const AppContent = () => {
   const [activeView, setActiveView] = useState("functionTest");
   const { user, loading, logout, isAuthenticated } = useAuth();
 
+  // Set default view based on user role
+  useEffect(() => {
+    if (user?.userName === "admin") {
+      setActiveView("admin");
+    } else {
+      setActiveView("functionTest");
+    }
+  }, [user]);
+
   const renderActiveView = () => {
+    // Check if user is trying to access admin page and is not admin
+    if (activeView === "admin" && user?.userName !== "admin") {
+      // Redirect non-admin users to function test
+      setActiveView("functionTest");
+      return <FunctionTestView />;
+    }
+
+    // Check if admin user is trying to access non-admin pages
+    if (user?.userName === "admin" && activeView !== "admin") {
+      // Redirect admin users to admin page
+      setActiveView("admin");
+      return <Admin />;
+    }
+
     switch (activeView) {
       case "functionTest":
         return <FunctionTestView />;
@@ -56,10 +59,10 @@ const AppContent = () => {
         return <AudioRecorder />;
       case "logDebug":
         return <ChatLogs />;
-      case "funStuff":
-        return <PlaceholderView title="Fun Stuff" />;
       case "detail":
         return <PlaceholderView title="Detail" />;
+      case "admin":
+        return <Admin />;
       default:
         return <FunctionTestView />;
     }
@@ -88,7 +91,12 @@ const AppContent = () => {
       <div className="w-full md:h-full bg-transparent rounded-2xl flex flex-col md:flex-row overflow-hidden p-3 pb-20 md:p-0">
         {/* Sidebar (desktop) */}
         <div className="hidden md:block">
-          <Sidebar activeView={activeView} setActiveView={setActiveView} />
+          <Sidebar
+            activeView={activeView}
+            setActiveView={setActiveView}
+            user={user}
+            onLogout={logout}
+          />
         </div>
         {/* Bottom nav bar (mobile) */}
         <div className="block md:hidden w-full">
@@ -96,6 +104,8 @@ const AppContent = () => {
             activeView={activeView}
             setActiveView={setActiveView}
             mobile
+            user={user}
+            onLogout={logout}
           />
         </div>
         {/* Main content area */}
@@ -106,10 +116,7 @@ const AppContent = () => {
           </div>
           {/* RobotStatus - 40%, hidden on mobile */}
           <div className="hidden md:block w-2/5 m-3 max-h-screen">
-            <div className="space-y-3">
-              <UserProfile user={user} onLogout={logout} />
-              <RobotStatus />
-            </div>
+            <RobotStatus />
           </div>
         </div>
       </div>
