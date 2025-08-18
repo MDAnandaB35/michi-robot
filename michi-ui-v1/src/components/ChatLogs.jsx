@@ -318,6 +318,20 @@ export default function App() {
   const [error, setError] = useState(null);
   const [filterDate, setFilterDate] = useState("all");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const chatContainerRef = useRef(null);
+
+  // Auto-scroll to bottom when logs change
+  useEffect(() => {
+    if (chatContainerRef.current && logs.length > 0) {
+      const scrollToBottom = () => {
+        chatContainerRef.current.scrollTop =
+          chatContainerRef.current.scrollHeight;
+      };
+
+      // Use setTimeout to ensure DOM is updated before scrolling
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [logs, filterDate]);
 
   useEffect(() => {
     fetchChatLogs()
@@ -439,7 +453,7 @@ export default function App() {
           </h2>
         </div>
 
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto">
           {isLoading ? (
             <Loader />
           ) : Object.keys(groupedLogs).length > 0 ? (
