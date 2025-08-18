@@ -1,0 +1,36 @@
+# OpenAI API Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# ElevenLabs API Configuration
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+
+# MongoDB Configuration
+MONGODB_URI=mongodb://localhost:27017/michi_robot
+MONGODB_DBNAME=michi_robot
+MONGODB_COLLECTION=chat_logs
+
+# Robot Identifier (MUST match user's _id from MongoDB)
+# This should be the same _id as the user in your authentication database
+ROBOT_ID=507f1f77bcf86cd799439011
+
+# File Storage Configuration
+UPLOAD_FOLDER=uploads
+WAKEWORD_FOLDER=wakeword_audio
+CHROMA_PATH=chroma_db
+
+# Audio File Saving Configuration
+# Set to "YES" to save audio files permanently, "NO" to use temporary files
+SAVE_WAKEWORD=NO
+SAVE_RESPONSES=NO
+
+# MQTT Configuration
+MQTT_BROKER=broker.emqx.io
+MQTT_PORT=1883
+MQTT_TOPIC=testtopic/mwtt
+
+# AI Model Configuration
+RELEVANCE_THRESHOLD=0.6
+
+# Server Configuration
+QUART_ENV=development
+QUART_DEBUG=true

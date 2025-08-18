@@ -497,35 +497,49 @@ async def detect_wakeword():
             logger.warning("Audio file too large: %d bytes", len(request_data))
             return jsonify({"error": "Audio file too large"}), 413
 
-        # Determine whether to save permanently or use temporary file
-        if Config.SAVE_WAKEWORD:
-            # Save permanently
-            timestamp = int(time.time())
-            wakeword_filename = f"wakeword_{timestamp}.wav"
-            wakeword_path = os.path.join(Config.WAKEWORD_FOLDER, wakeword_filename)
-            
-            try:
+        try:
+            # Determine whether to save permanently or use temporary file
+            if Config.SAVE_WAKEWORD:
+                # Save permanently
+                timestamp = int(time.time())
+                wakeword_filename = f"wakeword_{timestamp}.wav"
+                wakeword_path = os.path.join(Config.WAKEWORD_FOLDER, wakeword_filename)
+                
                 # Save the received audio as a .wav file
                 async with aiofiles.open(wakeword_path, "wb") as f:
                     await f.write(request_data)
                 
                 logger.info(f"Wakeword audio saved permanently to: {wakeword_path}")
-            except Exception as e:
-                logger.error(f"Failed to save wakeword audio: {e}")
-                return jsonify({"error": f"Failed to save audio file: {str(e)}"}), 500
-        else:
-            # Use temporary file
-            async with temp_audio_file("wakeword_") as temp_path:
-                async with aiofiles.open(temp_path, "wb") as f:
-                    await f.write(request_data)
-                wakeword_path = temp_path
-                wakeword_filename = "temporary_file"
-                logger.info("Wakeword audio saved temporarily")
-
-        try:
-            # Use the file for transcription
-            async with aiofiles.open(wakeword_path, "rb") as audio_file:
-                audio_data = await audio_file.read()
+                
+                # Use the saved file for transcription
+                async with aiofiles.open(wakeword_path, "rb") as audio_file:
+                    audio_data = await audio_file.read()
+                    
+            else:
+                # Create a temporary file manually for wakeword detection
+                temp_fd, temp_path = tempfile.mkstemp(suffix=".wav", prefix="wakeword_")
+                os.close(temp_fd)
+                
+                try:
+                    # Write the audio data to temporary file
+                    async with aiofiles.open(temp_path, "wb") as f:
+                        await f.write(request_data)
+                    
+                    logger.info("Wakeword audio saved temporarily")
+                    
+                    # Read the audio data from temporary file
+                    async with aiofiles.open(temp_path, "rb") as audio_file:
+                        audio_data = await audio_file.read()
+                    
+                    wakeword_filename = "temporary_file"
+                    
+                finally:
+                    # Clean up the temporary file
+                    try:
+                        os.remove(temp_path)
+                        logger.debug(f"Temporary wakeword file removed: {temp_path}")
+                    except OSError as e:
+                        logger.warning(f"Failed to remove temporary wakeword file {temp_path}: {e}")
             
             with Timer("Audio transcription"):
                 transcript = await openai_client.audio.transcriptions.create(
