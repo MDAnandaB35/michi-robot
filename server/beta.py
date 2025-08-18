@@ -36,13 +36,18 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
+    WAKEWORD_FOLDER = os.getenv("WAKEWORD_FOLDER", "wakeword_audio")
     CHROMA_PATH = os.getenv("CHROMA_PATH", "chroma_db")
     MQTT_BROKER = os.getenv("MQTT_BROKER", "broker.emqx.io")
     MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
     MQTT_TOPIC = os.getenv("MQTT_TOPIC", "testtopic/mwtt")
-    WAKE_WORDS = ["michi", "hai michi", "halo michi", "robot michi"]
+    WAKE_WORDS = ["michi", "hai michi", "halo michi", "robot michi", "halo"]
     MAX_AUDIO_SIZE = 10 * 1024 * 1024
     RELEVANCE_THRESHOLD = float(os.getenv("RELEVANCE_THRESHOLD", 0.6))
+    
+    # File saving configuration
+    SAVE_WAKEWORD = os.getenv("SAVE_WAKEWORD", "NO").upper() == "YES"
+    SAVE_RESPONSES = os.getenv("SAVE_RESPONSES", "NO").upper() == "YES"
 
     MONGODB_URI = os.getenv("MONGODB_URI")
     MONGODB_DBNAME = os.getenv("MONGODB_DBNAME", "michi_robot")
@@ -64,6 +69,7 @@ for var in REQUIRED_ENV_VARS:
         raise EnvironmentError(f"Missing required environment variable: {var}")
 
 os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(Config.WAKEWORD_FOLDER, exist_ok=True)
 
 # Initialize OpenAI and ElevenLabs clients
 openai_client = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
@@ -288,11 +294,12 @@ async def temp_audio_file(prefix: str) -> AsyncGenerator[str, None]:
             logger.error(f"Error removing temporary file {path}: {e}")
 
 # Detecting wake words using fuzzy matching
-def detect_wake_word_fuzzy(text: str, threshold: int = 85) -> bool:
-    """Detects if the input text contains a wake word using fuzzy matching."""
-    with Timer("Wake word detection"):
-        text = text.lower()
-        return any(fuzz.partial_ratio(wake, text) >= threshold for wake in Config.WAKE_WORDS)
+def detect_wake_word_fuzzy(text, threshold=85):
+    text = text.lower()
+    for wake in Config.WAKE_WORDS:
+        if fuzz.partial_ratio(wake, text) >= threshold:
+            return True
+    return False
 
 # Generating response using OpenAI LLM
 async def concurrent_response_generation(message: str, core: Main) -> Tuple[str, str]:
@@ -490,32 +497,59 @@ async def detect_wakeword():
             logger.warning("Audio file too large: %d bytes", len(request_data))
             return jsonify({"error": "Audio file too large"}), 413
 
-        async with temp_audio_file("wakeword_") as wav_path:
-            async with aiofiles.open(wav_path, "wb") as f:
-                await f.write(request_data)
-
+        # Determine whether to save permanently or use temporary file
+        if Config.SAVE_WAKEWORD:
+            # Save permanently
+            timestamp = int(time.time())
+            wakeword_filename = f"wakeword_{timestamp}.wav"
+            wakeword_path = os.path.join(Config.WAKEWORD_FOLDER, wakeword_filename)
+            
             try:
-                async with aiofiles.open(wav_path, "rb") as audio_file:
-                    audio_data = await audio_file.read()
-                with Timer("Audio transcription"):
-                    transcript = await openai_client.audio.transcriptions.create(
-                        model="whisper-1",
-                        file=("audio.mp3", audio_data),
-                        language="id"
-                    )
-                text = transcript.text
-                logger.info("Transcription result: %s", text)
-
-                wakeword_detected = detect_wake_word_fuzzy(text)
-                logger.info("Wake word detected: %s", wakeword_detected)
-
-                return jsonify({"wakeword_detected": wakeword_detected})
-            except OpenAIError as e:
-                logger.error("Transcription failed: %s", e)
-                return jsonify({"error": f"Transcription failed: {str(e)}"}), 500
+                # Save the received audio as a .wav file
+                async with aiofiles.open(wakeword_path, "wb") as f:
+                    await f.write(request_data)
+                
+                logger.info(f"Wakeword audio saved permanently to: {wakeword_path}")
             except Exception as e:
-                logger.error("Unexpected error in wakeword detection: %s", e)
-                return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+                logger.error(f"Failed to save wakeword audio: {e}")
+                return jsonify({"error": f"Failed to save audio file: {str(e)}"}), 500
+        else:
+            # Use temporary file
+            async with temp_audio_file("wakeword_") as temp_path:
+                async with aiofiles.open(temp_path, "wb") as f:
+                    await f.write(request_data)
+                wakeword_path = temp_path
+                wakeword_filename = "temporary_file"
+                logger.info("Wakeword audio saved temporarily")
+
+        try:
+            # Use the file for transcription
+            async with aiofiles.open(wakeword_path, "rb") as audio_file:
+                audio_data = await audio_file.read()
+            
+            with Timer("Audio transcription"):
+                transcript = await openai_client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=("audio.mp3", audio_data),
+                    language="id"
+                )
+            text = transcript.text
+            logger.info("Transcription result: %s", text)
+
+            wakeword_detected = detect_wake_word_fuzzy(text)
+            logger.info("Wake word detected: %s", wakeword_detected)
+
+            return jsonify({
+                "wakeword_detected": wakeword_detected,
+                "audio_saved": wakeword_filename,
+                "transcription": text
+            })
+        except OpenAIError as e:
+            logger.error("Transcription failed: %s", e)
+            return jsonify({"error": f"Transcription failed: {str(e)}"}), 500
+        except Exception as e:
+            logger.error("Unexpected error in wakeword detection: %s", e)
+            return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 # Receiving audio input
 @app.route('/process_input', methods=['POST'])
@@ -568,9 +602,18 @@ async def process_input():
                         core.current_audio_file = None
 
                 if intent == "talk":
-                    persistent_path = os.path.join(Config.UPLOAD_FOLDER, f"response_{int(time.time())}.mp3")
-                    await agenerate_speech_elevenlabs(response, persistent_path)
-                    core.current_audio_file = persistent_path
+                    if Config.SAVE_RESPONSES:
+                        # Save response audio permanently
+                        persistent_path = os.path.join(Config.UPLOAD_FOLDER, f"response_{int(time.time())}.mp3")
+                        await agenerate_speech_elevenlabs(response, persistent_path)
+                        core.current_audio_file = persistent_path
+                        logger.info(f"Response audio saved permanently to: {persistent_path}")
+                    else:
+                        # Use temporary file for response audio
+                        async with temp_audio_file("response_") as temp_response_path:
+                            await agenerate_speech_elevenlabs(response, temp_response_path)
+                            core.current_audio_file = temp_response_path
+                            logger.info("Response audio saved temporarily")
                     
                     return jsonify({
                         "intent": intent,
@@ -600,19 +643,40 @@ async def audio_response():
                     while chunk := await f.read(4096):
                         yield chunk
 
+            # Clean up temporary files after streaming (if not saving permanently)
+            if not Config.SAVE_RESPONSES and core.current_audio_file:
+                try:
+                    # Schedule cleanup after response is sent
+                    asyncio.create_task(cleanup_temp_response_file(core.current_audio_file))
+                    core.current_audio_file = None
+                except Exception as e:
+                    logger.warning(f"Failed to schedule cleanup of temporary response file: {e}")
+
             return Response(generate(), mimetype="audio/mpeg", headers={"Content-Disposition": "inline"})
         
         return Response("No audio available or file not found.", status=404)
 
+# Cleanup function for temporary response files
+async def cleanup_temp_response_file(file_path: str):
+    """Clean up temporary response audio files after a delay."""
+    try:
+        # Wait a bit to ensure the file is fully streamed
+        await asyncio.sleep(2)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.debug(f"Cleaned up temporary response file: {file_path}")
+    except Exception as e:
+        logger.warning(f"Failed to clean up temporary response file {file_path}: {e}")
+
 # Database history endpoint
 @app.route('/api/chat-logs', methods=['GET'])
 async def get_chat_logs():
-    """Endpoint to fetch the last 10 chat logs from the database."""
+    """Endpoint to fetch all chat logs from the database."""
     with Timer("Fetch chat logs from DB"):
         if core.db_logger is None:
             return jsonify({"error": "Database logger is not available. Cannot fetch chat logs."}), 503
 
-        cursor = core.db_logger.collection.find().sort("time", -1).limit(10)
+        cursor = core.db_logger.collection.find().sort("time", -1)
         chat_logs = []
         async for doc in cursor:
             doc["_id"] = str(doc["_id"])  # Convert ObjectId to string for JSON
@@ -622,4 +686,8 @@ async def get_chat_logs():
 if __name__ == '__main__':
     print("🚀 Starting Michi Chatbot Server on port 5000")
     print("🔒 HTTPS is handled by AWS load balancer/reverse proxy")
+    print(f"📁 Wakeword audio saving: {'ENABLED' if Config.SAVE_WAKEWORD else 'DISABLED'}")
+    print(f"📁 Response audio saving: {'ENABLED' if Config.SAVE_RESPONSES else 'DISABLED'}")
+    print(f"📂 Wakeword folder: {Config.WAKEWORD_FOLDER}")
+    print(f"📂 Uploads folder: {Config.UPLOAD_FOLDER}")
     app.run(host="0.0.0.0", port=5000, debug=False)
