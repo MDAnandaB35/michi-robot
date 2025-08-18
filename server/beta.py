@@ -288,11 +288,12 @@ async def temp_audio_file(prefix: str) -> AsyncGenerator[str, None]:
             logger.error(f"Error removing temporary file {path}: {e}")
 
 # Detecting wake words using fuzzy matching
-def detect_wake_word_fuzzy(text: str, threshold: int = 85) -> bool:
-    """Detects if the input text contains a wake word using fuzzy matching."""
-    with Timer("Wake word detection"):
-        text = text.lower()
-        return any(fuzz.partial_ratio(wake, text) >= threshold for wake in Config.WAKE_WORDS)
+def detect_wake_word_fuzzy(text, threshold=85):
+    text = text.lower()
+    for wake in Config.WAKE_WORDS:
+        if fuzz.partial_ratio(wake, text) >= threshold:
+            return True
+    return False
 
 # Generating response using OpenAI LLM
 async def concurrent_response_generation(message: str, core: Main) -> Tuple[str, str]:
