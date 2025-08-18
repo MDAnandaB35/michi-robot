@@ -1,36 +1,81 @@
+# ========================================
+# Michi Chatbot Server Environment Variables
+# ========================================
+# Copy this file to .env and fill in your actual values
+
+# ========================================
+# REQUIRED API KEYS (Must be set)
+# ========================================
+
 # OpenAI API Configuration
+# Get your API key from: https://platform.openai.com/api-keys
 OPENAI_API_KEY=your_openai_api_key_here
 
-# ElevenLabs API Configuration
+# ElevenLabs API Configuration  
+# Get your API key from: https://elevenlabs.io/
 ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
 
-# MongoDB Configuration
+# ========================================
+# MONGODB CONFIGURATION
+# ========================================
+
+# MongoDB Connection String
+# Format: mongodb://username:password@host:port/database
+# For local development: mongodb://localhost:27017/michi_robot
 MONGODB_URI=mongodb://localhost:27017/michi_robot
+
+# Database name for storing chat logs
 MONGODB_DBNAME=michi_robot
+
+# Collection name for storing chat logs
 MONGODB_COLLECTION=chat_logs
 
-# Robot Identifier (MUST match user's _id from MongoDB)
-# This should be the same _id as the user in your authentication database
-ROBOT_ID=507f1f77bcf86cd799439011
+# ========================================
+# FILE STORAGE CONFIGURATION
+# ========================================
 
-# File Storage Configuration
+# Folder for storing uploaded audio files and generated responses
 UPLOAD_FOLDER=uploads
-WAKEWORD_FOLDER=wakeword_audio
+
+# Path for Chroma vector database storage
 CHROMA_PATH=chroma_db
 
-# Audio File Saving Configuration
-# Set to "YES" to save audio files permanently, "NO" to use temporary files
-SAVE_WAKEWORD=NO
-SAVE_RESPONSES=NO
+# ========================================
+# MQTT CONFIGURATION (Robot Control)
+# ========================================
 
-# MQTT Configuration
+# MQTT broker address for sending robot commands
 MQTT_BROKER=broker.emqx.io
+
+# MQTT broker port (usually 1883 for non-TLS, 8883 for TLS)
 MQTT_PORT=1883
+
+# MQTT topic for publishing robot commands
 MQTT_TOPIC=testtopic/mwtt
 
-# AI Model Configuration
-RELEVANCE_THRESHOLD=0.6
+# ========================================
+# AI MODEL CONFIGURATION
+# ========================================
 
-# Server Configuration
-QUART_ENV=development
-QUART_DEBUG=true
+# Relevance threshold for document retrieval (0.0 to 1.0)
+# Higher values = more strict relevance matching
+RELEVANCE_THRESHOLD=0.3
+
+# LLM temperature setting (0.0 to 2.0)
+# Lower = more focused/consistent, Higher = more creative/varied
+LLM_TEMPERATURE=0.6
+
+# OpenAI model to use for text generation
+# Options: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
+LLM_MODEL=gpt-4o-mini
+
+# ========================================
+# NOTES
+# ========================================
+# 
+# 1. The server will automatically create the UPLOAD_FOLDER and CHROMA_PATH directories
+# 2. Make sure MongoDB is running and accessible before starting the server
+# 3. For production, use a proper reverse proxy and ensure security settings
+# 4. The MQTT configuration is used to send commands to the physical robot
+# 5. All audio files are processed as MP3 format
+# 6. Maximum audio file size is 10MB (configurable in code)

@@ -42,7 +42,11 @@ class Config:
     MQTT_TOPIC = os.getenv("MQTT_TOPIC", "testtopic/mwtt")
     WAKE_WORDS = ["michi", "hai michi", "halo michi", "robot michi", "halo"]
     MAX_AUDIO_SIZE = 10 * 1024 * 1024
-    RELEVANCE_THRESHOLD = float(os.getenv("RELEVANCE_THRESHOLD", 0.6))
+    RELEVANCE_THRESHOLD = float(os.getenv("RELEVANCE_THRESHOLD", 0.3))
+    
+    # LLM Configuration
+    LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", 0.8))
+    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4.1-nano-2025-04-14")
 
     MONGODB_URI = os.getenv("MONGODB_URI")
     MONGODB_DBNAME = os.getenv("MONGODB_DBNAME", "michi_robot")
@@ -88,7 +92,7 @@ class Timer:
 class Main:
     def __init__(self):
         with Timer("Main initialization"):
-            self.llm = ChatOpenAI(temperature=0.6, model="gpt-4.1-nano-2025-04-14") # LLM Model
+            self.llm = ChatOpenAI(temperature=Config.LLM_TEMPERATURE, model=Config.LLM_MODEL) # LLM Model
             self.embeddings_model = OpenAIEmbeddings(model="text-embedding-3-large") # Embedding Model
             self.vector_store = Chroma(
                 collection_name="example_collection",
@@ -312,7 +316,7 @@ async def concurrent_response_generation(message: str, core: Main) -> Tuple[str,
             logger.info("Intent is not 'talk'; skipping LLM response generation.")
             return None, intent
 
-        relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score < Config.RELEVANCE_THRESHOLD]
+        relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score > Config.RELEVANCE_THRESHOLD]
         
         logger.info(f"Detected intent: {intent}")
         logger.info(f"Retrieved {len(docs_with_scores)} documents, found {len(relevant_docs)} to be relevant.")
@@ -353,14 +357,14 @@ async def concurrent_response_generation(message: str, core: Main) -> Tuple[str,
     return response_text, intent
 
 
-# Text-only response generation (without intent classification)
+# Text-only response generation (without intent classification) for debugging
 async def text_response_generation(message: str, core: Main) -> str:
     """Generates response from text input without intent classification or audio processing."""
     with Timer("Text response generation"):
         # --- Get relevant documents from vector store ---
         docs_with_scores = await core.vector_store.asimilarity_search_with_relevance_scores(query=message, k=5)
         
-        relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score < Config.RELEVANCE_THRESHOLD]
+        relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score > Config.RELEVANCE_THRESHOLD]
         
         logger.info(f"Retrieved {len(docs_with_scores)} documents, found {len(relevant_docs)} to be relevant.")
 
@@ -380,6 +384,7 @@ async def text_response_generation(message: str, core: Main) -> str:
         - Jangan awali dengan "Jawaban:" atau mengulang pertanyaan.
         - Jaga jawaban tetap singkat, maksimal 3-5 kalimat pendek.
         - Tetap natural dan conversational.
+        - Toedjoe itu sama dengan tujuh dan 7, hanya berbeda penyebutan.
 
         **Pertanyaan pengguna:**
 
