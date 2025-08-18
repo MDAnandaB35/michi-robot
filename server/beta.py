@@ -301,21 +301,18 @@ def detect_wake_word_fuzzy(text, threshold=85):
 
 # Generating response using OpenAI LLM
 async def concurrent_response_generation(message: str, core: Main) -> Tuple[str, str]:
-    """Runs intent classification and document retrieval concurrently, then generates a response if intent is 'talk'."""
+    """Runs intent classification first, then fetches documents only if intent is 'talk'."""
     with Timer("Concurrent response generation"):
-        # --- Schedule intent classification and doc retrieval to run at the same time ---
-        intent_task = asyncio.create_task(core.intent_classifier.aclassify_intent(message))
-        docs_task = asyncio.create_task(
-            core.vector_store.asimilarity_search_with_relevance_scores(query=message, k=3)
-        )
-
-        # --- Wait for both concurrent tasks to complete ---
-        intent, docs_with_scores = await asyncio.gather(intent_task, docs_task)
-
+        # --- First, classify the intent ---
+        intent = await core.intent_classifier.aclassify_intent(message)
+        
         if intent != "talk":
-            logger.info("Intent is not 'talk'; skipping LLM response generation.")
+            logger.info("Intent is not 'talk'; skipping document retrieval and LLM response generation.")
             return None, intent
 
+        # --- Only fetch documents if intent is 'talk' ---
+        docs_with_scores = await core.vector_store.asimilarity_search_with_relevance_scores(query=message, k=3)
+        
         relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score > Config.RELEVANCE_THRESHOLD]
         
         logger.info(f"Detected intent: {intent}")
@@ -446,6 +443,27 @@ app = Quart(__name__)
 app = cors(app, allow_origin="*", allow_credentials=False)
 core = Main()
 
+@app.route('/', methods=['GET'])
+async def root():
+    """Root endpoint to handle health checks and basic requests."""
+    return jsonify({
+        "status": "running",
+        "service": "Michi Chatbot Server",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "endpoints": {
+            "text_chat": "/text_chat",
+            "detect_wakeword": "/detect_wakeword", 
+            "process_input": "/process_input",
+            "audio_response": "/audio_response",
+            "chat_logs": "/api/chat-logs"
+        }
+    })
+
+@app.route('/health', methods=['GET'])
+async def health_check():
+    """Health check endpoint for load balancers and monitoring."""
+    return jsonify({"status": "healthy"}), 200
+
 @app.route('/text_chat', methods=['POST'])
 async def text_chat():
     """Endpoint to process text input and generate response without audio processing."""
@@ -557,8 +575,8 @@ async def process_input():
 
                 response, intent = await concurrent_response_generation(transcribed_text, core)
 
-                # Send Q n A to the database logger
-                if core.db_logger is not None:
+                # Send Q n A to the database logger only when there's a response (intent is "talk")
+                if core.db_logger is not None and intent == "talk" and response:
                     asyncio.create_task(core.db_logger.alog_interaction(transcribed_text, response))
                 
                 # Publish to MQTT in the background
