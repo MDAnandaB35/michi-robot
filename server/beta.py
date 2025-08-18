@@ -14,6 +14,7 @@ from pathlib import Path
 import time
 import datetime
 from typing import Generator, Tuple, List, AsyncGenerator
+import pytz
 
 # --- Third-party library imports ---
 from rapidfuzz import fuzz
@@ -120,10 +121,14 @@ class MongoLogger:
         self.collection = self.db[Config.MONGODB_COLLECTION]
 
     async def alog_interaction(self, question: str, answer: str):
+        # Get current time in Indonesian timezone (UTC+7)
+        indonesia_tz = pytz.timezone('Asia/Jakarta')
+        current_time = datetime.datetime.now(indonesia_tz)
+        
         doc = {
             "input": question,
             "response": answer,
-            "time": datetime.datetime.now()
+            "time": current_time
         }
         await self.collection.insert_one(doc)
 
@@ -636,12 +641,46 @@ async def get_chat_logs():
         if core.db_logger is None:
             return jsonify({"error": "Database logger is not available. Cannot fetch chat logs."}), 503
 
-        cursor = core.db_logger.collection.find().sort("time", -1)
-        chat_logs = []
-        async for doc in cursor:
-            doc["_id"] = str(doc["_id"])  # Convert ObjectId to string for JSON
-            chat_logs.append(doc)
-        return jsonify(chat_logs)
+        try:
+            # Use ObjectId for more reliable sorting by insertion order
+            cursor = core.db_logger.collection.find().sort("_id", -1)
+            chat_logs = []
+            async for doc in cursor:
+                doc["_id"] = str(doc["_id"])  # Convert ObjectId to string for JSON
+                
+                # Format time to Indonesian timezone
+                if "time" in doc:
+                    try:
+                        # Handle different time formats
+                        if isinstance(doc["time"], float):
+                            # Convert float timestamp to datetime
+                            utc_time = datetime.datetime.fromtimestamp(doc["time"], pytz.utc)
+                        elif isinstance(doc["time"], datetime.datetime):
+                            # Handle datetime objects
+                            if doc["time"].tzinfo is None:
+                                utc_time = pytz.utc.localize(doc["time"])
+                            else:
+                                utc_time = doc["time"]
+                        else:
+                            # Skip if time format is unknown
+                            continue
+                        
+                        # Convert to Indonesian timezone
+                        indonesia_time = utc_time.astimezone(pytz.timezone('Asia/Jakarta'))
+                        doc["time"] = indonesia_time.isoformat()  # ISO format for frontend Date parsing
+                    except Exception as e:
+                        logger.warning(f"Could not format time for document {doc.get('_id')}: {e}")
+                        # Keep original time if formatting fails
+                        pass
+                
+                chat_logs.append(doc)
+            
+            logger.info(f"Retrieved {len(chat_logs)} chat logs from database")
+            return jsonify(chat_logs)
+            
+        except Exception as e:
+            logger.error(f"Error fetching chat logs: {e}")
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     print("🚀 Starting Michi Chatbot Server on port 5000")
