@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import mqtt from "mqtt";
 
-const MQTT_BROKER = import.meta.env.VITE_MQTT_BROKER || "broker.emqx.io";
-const MQTT_WS_PORT = import.meta.env.VITE_MQTT_WS_PORT || "8084"; // WSS port!
+const MQTT_BROKER = import.meta.env.VITE_MQTT_BROKER || "test.mosquitto.org";
+const MQTT_WS_PORT = import.meta.env.VITE_MQTT_WS_PORT || "8081"; // WSS port!
 const MQTT_PROTOCOL = import.meta.env.VITE_MQTT_PROTOCOL || "wss"; // "wss" for secure connections
 const MQTT_TOPIC = import.meta.env.VITE_MQTT_TOPIC || "testtopic/mwtt";
 
