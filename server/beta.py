@@ -41,7 +41,7 @@ class Config:
     MQTT_BROKER = os.getenv("MQTT_BROKER", "broker.emqx.io")
     MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
     MQTT_TOPIC = os.getenv("MQTT_TOPIC", "testtopic/mwtt")
-    WAKE_WORDS = ["michi", "hai michi", "halo michi", "robot michi", "halo", "michi cantik", "michi pintar", "halo pintar", "hai pintar", "hai"]
+    WAKE_WORDS = ["michi", "hai michi", "halo michi", "robot michi", "halo", "michi cantik", "michi pintar", "halo pintar", "hai pintar", "hai", "main yuk", "bermain", "ngobrol"]
     MAX_AUDIO_SIZE = 10 * 1024 * 1024
     RELEVANCE_THRESHOLD = float(os.getenv("RELEVANCE_THRESHOLD", 0.3))
     
