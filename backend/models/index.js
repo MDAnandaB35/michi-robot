@@ -25,11 +25,13 @@ db.mongoose = mongoose;
 db.config = {
     databaseName: process.env.DB_NAME,
     collections: {
-        users: process.env.USERS_COLLECTION
+        users: process.env.USERS_COLLECTION,
+        robots: process.env.ROBOTS_COLLECTION
     }
 };
 
 // Import models
 db.User = require('./User.js');
+db.Robot = require('./Robot.js');
 
 module.exports = db;

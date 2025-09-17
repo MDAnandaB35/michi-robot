@@ -1,15 +1,29 @@
 import { TestTube2, Wifi, FileText, Database } from "./Icons";
 import { LogOut, User, Shield } from "lucide-react";
 
-const Sidebar = ({ activeView, setActiveView, mobile, user, onLogout }) => {
+const Sidebar = ({
+  activeView,
+  setActiveView,
+  mobile,
+  user,
+  onLogout,
+  selectedRobot,
+  onClearSelectedRobot,
+}) => {
   // Define navigation items based on user role
   const getNavItems = () => {
-    // Admin users only see Admin page
+    // Admin users see admin pages only
     if (user?.userName === "admin") {
-      return [{ id: "admin", icon: Shield, label: "Admin" }];
+      return [
+        { id: "adminUsers", icon: Shield, label: "Admin Users" },
+        { id: "adminRobots", icon: Shield, label: "Admin Robots" },
+      ];
     }
 
     // Regular users see all other pages except FunStuff
+    if (!selectedRobot) {
+      return [{ id: "ownedRobots", icon: Database, label: "Owned Robots" }];
+    }
     return [
       { id: "functionTest", icon: TestTube2, label: "Function Test" },
       { id: "AudioRecorder", icon: Wifi, label: "Audio Recorder" },
@@ -22,23 +36,37 @@ const Sidebar = ({ activeView, setActiveView, mobile, user, onLogout }) => {
 
   // User profile component
   const UserProfile = ({ user, onLogout }) => (
-    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200 mt-auto">
-      <div className="h-8 w-8 bg-indigo-600 rounded-full flex items-center justify-center">
-        <User className="h-4 w-4 text-white" />
+    <div>
+      {/* Return to Owned Robots */}
+      {selectedRobot && activeView !== "ownedRobots" && (
+        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200 mt-auto mb-3">
+          <button
+            onClick={onClearSelectedRobot}
+            className="mr-2 px-2 py-1 text-xs border rounded text-gray-700 "
+          >
+            Return to Owned Robots
+          </button>
+        </div>
+      )}
+      {/* Log out button */}
+      <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200 mt-auto">
+        <div className="h-8 w-8 bg-indigo-600 rounded-full flex items-center justify-center">
+          <User className="h-4 w-4 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {user?.userName}
+          </p>
+          <p className="text-xs text-gray-500">Logged in</p>
+        </div>
+        <button
+          onClick={onLogout}
+          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
+          title="Logout"
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">
-          {user?.userName}
-        </p>
-        <p className="text-xs text-gray-500">Logged in</p>
-      </div>
-      <button
-        onClick={onLogout}
-        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
-        title="Logout"
-      >
-        <LogOut className="h-4 w-4" />
-      </button>
     </div>
   );
 

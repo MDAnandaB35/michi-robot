@@ -1,0 +1,134 @@
+{
+    "info": {
+      "_postman_id": "michi-server-robot-scoped",
+      "name": "Michi Server (Quart) - Robot Scoped",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+      "description": "Postman collection for testing the Michi Python (Quart) backend with per-robot scoping."
+    },
+    "item": [
+      {
+        "name": "Root",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "{{baseUrl}}/",
+            "host": ["{{baseUrl}}"],
+            "path": [""]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Health",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "{{baseUrl}}/health",
+            "host": ["{{baseUrl}}"],
+            "path": ["health"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Text Chat (JSON) [optional robot_id]",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Content-Type", "value": "application/json" }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"message\": \"Halo Michi, apa kabar?\",\n  \"robot_id\": \"{{robot_id}}\"\n}"
+          },
+          "url": {
+            "raw": "{{baseUrl}}/text_chat",
+            "host": ["{{baseUrl}}"],
+            "path": ["text_chat"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Process Input (audio binary) [robot_id via query + header]",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Content-Type", "value": "application/octet-stream" },
+            { "key": "X-Robot-Id", "value": "{{robot_id}}" }
+          ],
+          "body": {
+            "mode": "file",
+            "file": { "src": "" }
+          },
+          "url": {
+            "raw": "{{baseUrl}}/process_input?robot_id={{robot_id}}",
+            "host": ["{{baseUrl}}"],
+            "path": ["process_input"],
+            "query": [
+              { "key": "robot_id", "value": "{{robot_id}}" }
+            ]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Detect Wakeword (audio binary)",
+        "request": {
+          "method": "POST",
+          "header": [
+            { "key": "Content-Type", "value": "application/octet-stream" }
+          ],
+          "body": {
+            "mode": "file",
+            "file": { "src": "" }
+          },
+          "url": {
+            "raw": "{{baseUrl}}/detect_wakeword",
+            "host": ["{{baseUrl}}"],
+            "path": ["detect_wakeword"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Audio Response (stream) [robot_id]",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "{{baseUrl}}/audio_response?robot_id={{robot_id}}",
+            "host": ["{{baseUrl}}"],
+            "path": ["audio_response"],
+            "query": [
+              { "key": "robot_id", "value": "{{robot_id}}" }
+            ]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "Chat Logs [robot_id filter]",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "{{baseUrl}}/api/chat-logs?robot_id={{robot_id}}",
+            "host": ["{{baseUrl}}"],
+            "path": ["api", "chat-logs"],
+            "query": [
+              { "key": "robot_id", "value": "{{robot_id}}" }
+            ]
+          }
+        },
+        "response": []
+      }
+    ],
+    "variable": [
+      { "key": "baseUrl", "value": "http://localhost:5000", "type": "string" },
+      { "key": "robot_id", "value": "ROBOT-123", "type": "string" }
+    ]
+  }
+  

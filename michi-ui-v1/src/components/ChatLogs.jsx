@@ -312,7 +312,7 @@ const IOSDatePicker = ({ isOpen, onClose, onSelect, availableDates }) => {
 /**
  * Main Application Component
  */
-export default function App() {
+export default function App({ robot }) {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -334,7 +334,7 @@ export default function App() {
   }, [logs, filterDate]);
 
   useEffect(() => {
-    fetchChatLogs()
+    fetchChatLogs(robot?.robotId)
       .then((data) => {
         setLogs(data);
         setIsLoading(false);
@@ -345,7 +345,7 @@ export default function App() {
         setLogs(mockChatLogs); // fallback
         setIsLoading(false);
       });
-  }, []);
+  }, [robot?.robotId]);
 
   const filteredLogs = useMemo(() => {
     if (filterDate === "all") {

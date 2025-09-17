@@ -5,7 +5,7 @@ const bodyParser = require('body-parser'); // Read incoming requests
 const bcrypt = require('bcrypt'); // Hash passwords
 const jwt = require('jsonwebtoken'); // Create and verify JWT tokens
 const cors = require('cors'); // Enable CORS for all origins
-const { connectDB, User } = require('./models'); // Connect to MongoDB and User model
+const { connectDB, User, Robot } = require('./models'); // Connect to MongoDB and models
 require('dotenv').config();
 
 const app = express();
@@ -32,6 +32,21 @@ console.log('- JWT_SECRET set:', !!process.env.JWT_SECRET);
 console.log('- JWT_SECRET length:', process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 'N/A');
 console.log('- PORT:', process.env.PORT || 3001);
 console.log('- MONGODB_URI set:', !!process.env.MONGODB_URI);
+
+// Middleware to verify user token
+const verifyToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Unauthorized, no token provided' });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(401).json({ message: 'Unauthorized, invalid token' });
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Unauthorized, invalid token' });
+  }
+};
 
 // Middleware to verify admin token
 const verifyAdminToken = async (req, res, next) => {
@@ -115,6 +130,90 @@ app.get('/me', async (req, res) => {
   } catch (error) {
     console.error('Auth error:', error);
     res.status(401).json({ message: 'Unauthorized, invalid token' });
+  }
+});
+
+// Robot endpoints
+
+// Get robots owned by current user
+app.get('/robots/mine', verifyToken, async (req, res) => {
+  try {
+    const robots = await Robot.find({ ownerUserIds: req.user._id })
+      .select('-__v')
+      .sort({ createdAt: -1 });
+    res.json(robots);
+  } catch (error) {
+    console.error('Error fetching user robots:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Claim ownership of a robot by robotId (if exists), else 404
+app.post('/robots/claim', verifyToken, async (req, res) => {
+  try {
+    const { robotId } = req.body;
+    if (!robotId) return res.status(400).json({ message: 'robotId is required' });
+    const robot = await Robot.findOne({ robotId });
+    if (!robot) return res.status(404).json({ message: 'Robot not found' });
+    if (!robot.ownerUserIds.some(id => id.toString() === req.user._id.toString())) {
+      robot.ownerUserIds.push(req.user._id);
+      await robot.save();
+    }
+    res.json(robot);
+  } catch (error) {
+    console.error('Error claiming robot:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Admin: CRUD robots
+app.get('/admin/robots', verifyAdminToken, async (req, res) => {
+  try {
+    const robots = await Robot.find({}).select('-__v').sort({ createdAt: -1 });
+    res.json(robots);
+  } catch (error) {
+    console.error('Error fetching robots:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.post('/admin/robots', verifyAdminToken, async (req, res) => {
+  try {
+    const { robotId, robotName } = req.body;
+    if (!robotId || !robotName) return res.status(400).json({ message: 'robotId and robotName are required' });
+    const existing = await Robot.findOne({ robotId });
+    if (existing) return res.status(400).json({ message: 'Robot already exists' });
+    const robot = await Robot.create({ robotId, robotName, createdBy: req.user._id, ownerUserIds: [] });
+    res.status(201).json(robot);
+  } catch (error) {
+    console.error('Error creating robot:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.put('/admin/robots/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const { robotName, ownerUserIds } = req.body;
+    const update = {};
+    if (robotName) update.robotName = robotName;
+    if (Array.isArray(ownerUserIds)) update.ownerUserIds = ownerUserIds;
+    const robot = await Robot.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    if (!robot) return res.status(404).json({ message: 'Robot not found' });
+    res.json(robot);
+  } catch (error) {
+    console.error('Error updating robot:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.delete('/admin/robots/:id', verifyAdminToken, async (req, res) => {
+  try {
+    const robot = await Robot.findByIdAndDelete(req.params.id);
+    if (!robot) return res.status(404).json({ message: 'Robot not found' });
+    res.json({ message: 'Robot deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting robot:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 

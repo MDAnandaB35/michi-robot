@@ -104,7 +104,7 @@ class Main:
             self.intent_classifier = IntentClassifier(self.llm) # Intent classifier setup
             self.mqtt_client = MQTTClient(Config.MQTT_BROKER, Config.MQTT_PORT, Config.MQTT_TOPIC) # MQTT client setup
             self.mqtt_client.connect() # MQTT connection setup
-            self.current_audio_file = None
+            self.current_audio_files = {}
 
             try:
                 self.db_logger = MongoLogger()
@@ -120,7 +120,7 @@ class MongoLogger:
         self.db = self.client[Config.MONGODB_DBNAME]
         self.collection = self.db[Config.MONGODB_COLLECTION]
 
-    async def alog_interaction(self, question: str, answer: str):
+    async def alog_interaction(self, question: str, answer: str, robot_id: str | None = None):
         # Get current time in Indonesian timezone (UTC+7)
         indonesia_tz = pytz.timezone('Asia/Jakarta')
         current_time = datetime.datetime.now(indonesia_tz)
@@ -128,7 +128,8 @@ class MongoLogger:
         doc = {
             "input": question,
             "response": answer,
-            "time": current_time
+            "time": current_time,
+            **({"robot_id": robot_id} if robot_id else {})
         }
         await self.collection.insert_one(doc)
 
@@ -249,11 +250,11 @@ class IntentClassifier:
 
 # MQTT client class for publishing commands
 class MQTTClient:
-    def __init__(self, broker: str, port: int, topic: str):
+    def __init__(self, broker: str, port: int, topic_base: str):
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
         self.broker = broker
         self.port = port
-        self.topic = topic
+        self.topic_base = topic_base
         self.connected = False
 
     def connect(self): # The initial connect can remain blocking
@@ -266,17 +267,18 @@ class MQTTClient:
                 logger.error(f"Initial MQTT connection failed: {e}")
                 self.connected = False
 
-    async def apublish_command(self, intent: str): # ASYNC Method
+    async def apublish_command(self, intent: str, robot_id: str | None): # ASYNC Method
         if not self.connected:
             logger.warning("MQTT not connected, skipping publish.")
             return
 
         with Timer("MQTT publish"):
             try:
-                payload = json.dumps({"response": intent})
+                topic = f"{self.topic_base}/{robot_id}" if robot_id else self.topic_base
+                payload = json.dumps({"robot_id": robot_id, "response": intent})
                 # --- Run blocking publish call in a separate thread ---
-                await asyncio.to_thread(self.client.publish, self.topic, payload)
-                logger.info(f"Published to {self.topic}: {payload}")
+                await asyncio.to_thread(self.client.publish, topic, payload)
+                logger.info(f"Published to {topic}: {payload}")
             except Exception as e:
                 logger.error(f"MQTT publish failed: {e}")
 
@@ -481,6 +483,9 @@ async def text_chat():
                 return jsonify({"error": "Missing 'message' field in request body"}), 400
             
             message = request_data['message']
+            robot_id = request_data.get('robot_id') if isinstance(request_data, dict) else None
+            if not robot_id or not str(robot_id).strip():
+                return jsonify({"error": "robot_id is required"}), 400
             
             if not message or not message.strip():
                 return jsonify({"error": "Message cannot be empty"}), 400
@@ -497,7 +502,7 @@ async def text_chat():
             
             # Log to MongoDB in the background
             if core.db_logger is not None:
-                asyncio.create_task(core.db_logger.alog_interaction(message.strip(), response))
+                asyncio.create_task(core.db_logger.alog_interaction(message.strip(), response, robot_id))
             
             logger.info(f"Text chat processed - Input: {message.strip()}, Output: {response}")
             
@@ -552,6 +557,9 @@ async def process_input():
     """Endpoint to process user audio input, transcribe, generate response, intent, and TTS if needed."""
     with Timer("Full input processing"):
         request_data = await request.get_data()
+        robot_id = request.args.get('robot_id') or request.headers.get('X-Robot-Id')
+        if not robot_id or not str(robot_id).strip():
+            return jsonify({"error": "robot_id is required"}), 400
         # Ensure request_data is bytes
         if isinstance(request_data, str):
             request_data = request_data.encode()
@@ -582,29 +590,34 @@ async def process_input():
 
                 # Send Q n A to the database logger only when there's a response (intent is "talk")
                 if core.db_logger is not None and intent == "talk" and response:
-                    asyncio.create_task(core.db_logger.alog_interaction(transcribed_text, response))
+                    asyncio.create_task(core.db_logger.alog_interaction(transcribed_text, response, robot_id))
                 
                 # Publish to MQTT in the background
-                asyncio.create_task(core.mqtt_client.apublish_command(intent))
+                asyncio.create_task(core.mqtt_client.apublish_command(intent, robot_id))
 
-                if core.current_audio_file and os.path.exists(core.current_audio_file):
-                    try:
-                        os.remove(core.current_audio_file)
-                        logger.debug(f"Deleted previous audio file: {core.current_audio_file}")
-                    except OSError as e:
-                        logger.warning(f"Failed to delete previous audio file: {e}")
-                    finally:
-                        core.current_audio_file = None
+                # Clean previous per-robot audio file
+                if robot_id and robot_id in core.current_audio_files:
+                    old_path = core.current_audio_files.get(robot_id)
+                    if old_path and os.path.exists(old_path):
+                        try:
+                            os.remove(old_path)
+                            logger.debug(f"Deleted previous audio file for {robot_id}: {old_path}")
+                        except OSError as e:
+                            logger.warning(f"Failed to delete previous audio file for {robot_id}: {e}")
+                    core.current_audio_files.pop(robot_id, None)
 
                 if intent == "talk":
-                    persistent_path = os.path.join(Config.UPLOAD_FOLDER, f"response_{int(time.time())}.mp3")
+                    persistent_path = os.path.join(Config.UPLOAD_FOLDER, f"response_{robot_id or 'default'}_{int(time.time())}.mp3")
                     await agenerate_speech_elevenlabs(response, persistent_path)
-                    core.current_audio_file = persistent_path
+                    if robot_id:
+                        core.current_audio_files[robot_id] = persistent_path
+                    else:
+                        core.current_audio_files["default"] = persistent_path
                     
                     return jsonify({
                         "intent": intent,
                         "response": response,
-                        "audio_url": "/audio_response"
+                        "audio_url": f"/audio_response{f'?robot_id={robot_id}' if robot_id else ''}"
                     })
                 else:
                     return jsonify({"intent": intent})
@@ -621,7 +634,14 @@ async def process_input():
 async def audio_response():
     """Endpoint to stream the generated audio response file to the client."""
     with Timer("Audio response streaming"):
-        audio_file = core.current_audio_file
+        robot_id = request.args.get('robot_id')
+        if not robot_id or not str(robot_id).strip():
+            return Response("robot_id is required", status=400)
+        audio_file = None
+        if robot_id:
+            audio_file = core.current_audio_files.get(robot_id)
+        else:
+            audio_file = core.current_audio_files.get("default")
         if audio_file and os.path.exists(audio_file):
             
             async def generate():
@@ -642,8 +662,13 @@ async def get_chat_logs():
             return jsonify({"error": "Database logger is not available. Cannot fetch chat logs."}), 503
 
         try:
+            # Require filter by robot_id
+            robot_id = request.args.get('robot_id')
+            if not robot_id or not str(robot_id).strip():
+                return jsonify({"error": "robot_id is required"}), 400
+            query = {"robot_id": robot_id}
             # Use ObjectId for more reliable sorting by insertion order
-            cursor = core.db_logger.collection.find().sort("_id", -1)
+            cursor = core.db_logger.collection.find(query).sort("_id", -1)
             chat_logs = []
             async for doc in cursor:
                 doc["_id"] = str(doc["_id"])  # Convert ObjectId to string for JSON

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 
 // Configuration
 const SERVER_ORIGIN = import.meta.env.VITE_API_BASE_URL; // Flask base URL
-const PROCESS_URL = `https://${SERVER_ORIGIN}/process_input`;
+const PROCESS_URL = `http://${SERVER_ORIGIN}/process_input`;
 const SAMPLE_RATE = 16_000;
 
 // --- SVG Icons for the recorder button ---
@@ -19,7 +19,7 @@ const StopIcon = ({ className }) => (
 );
 
 // --- Main Audio Recorder Component ---
-export default function AudioRecorderPlayer() {
+export default function AudioRecorderPlayer({ robot }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [processedAudios, setProcessedAudios] = useState([]);
@@ -228,10 +228,16 @@ export default function AudioRecorderPlayer() {
     );
 
     try {
-      const res = await fetch(PROCESS_URL, {
+      const url = robot?.robotId
+        ? `${PROCESS_URL}?robot_id=${encodeURIComponent(robot.robotId)}`
+        : PROCESS_URL;
+      const res = await fetch(url, {
         method: "POST",
         mode: "cors",
-        headers: { "Content-Type": "application/octet-stream" },
+        headers: {
+          "Content-Type": "application/octet-stream",
+          ...(robot?.robotId ? { "X-Robot-Id": robot.robotId } : {}),
+        },
         body: wavBlob,
       });
 
@@ -247,7 +253,7 @@ export default function AudioRecorderPlayer() {
         const json = await res.json();
         if (json.audio_url) {
           // Construct the full HTTPS URL for the audio response
-          audioURL = `https://${SERVER_ORIGIN}${json.audio_url}`;
+          audioURL = `http://${SERVER_ORIGIN}${json.audio_url}`;
         } else {
           throw new Error("Response JSON did not contain audio_url.");
         }

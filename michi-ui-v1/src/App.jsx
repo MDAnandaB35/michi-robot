@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Sidebar from "./components/SideBar";
 import FunctionTestView from "./components/FunctionTestView";
+import OwnedRobots from "./components/OwnedRobots";
 import RobotStatus from "./components/RobotStatus";
 import AudioRecorder from "./components/AudioRecorder";
 import ChatLogs from "./components/ChatLogs";
 import Login from "./components/Login";
 import Admin from "./components/Admin";
+import AdminUsers from "./components/AdminUsers";
+import AdminRobots from "./components/AdminRobots";
 
 const PlaceholderView = ({ title }) => (
   <main className="flex-1 p-8">
@@ -25,15 +28,16 @@ const PlaceholderView = ({ title }) => (
 
 // Main App component that structures the entire page
 const AppContent = () => {
-  const [activeView, setActiveView] = useState("functionTest");
+  const [activeView, setActiveView] = useState("ownedRobots");
+  const [selectedRobot, setSelectedRobot] = useState(null);
   const { user, loading, logout, isAuthenticated } = useAuth();
 
   // Set default view based on user role
   useEffect(() => {
     if (user?.userName === "admin") {
-      setActiveView("admin");
+      setActiveView("adminUsers");
     } else {
-      setActiveView("functionTest");
+      setActiveView(selectedRobot ? "functionTest" : "ownedRobots");
     }
   }, [user]);
 
@@ -46,19 +50,62 @@ const AppContent = () => {
     }
 
     // Check if admin user is trying to access non-admin pages
-    if (user?.userName === "admin" && activeView !== "admin") {
+    if (
+      user?.userName === "admin" &&
+      !["adminUsers", "adminRobots"].includes(activeView)
+    ) {
       // Redirect admin users to admin page
-      setActiveView("admin");
-      return <Admin />;
+      setActiveView("adminUsers");
+      return <AdminUsers />;
     }
 
     switch (activeView) {
+      case "adminUsers":
+        return <AdminUsers />;
+      case "adminRobots":
+        return <AdminRobots />;
+      case "ownedRobots":
+        return (
+          <OwnedRobots
+            onSelectRobot={(r) => {
+              setSelectedRobot(r);
+              setActiveView("functionTest");
+            }}
+          />
+        );
       case "functionTest":
-        return <FunctionTestView />;
+        return selectedRobot ? (
+          <FunctionTestView robot={selectedRobot} />
+        ) : (
+          <OwnedRobots
+            onSelectRobot={(r) => {
+              setSelectedRobot(r);
+              setActiveView("functionTest");
+            }}
+          />
+        );
       case "AudioRecorder":
-        return <AudioRecorder />;
+        return selectedRobot ? (
+          <AudioRecorder robot={selectedRobot} />
+        ) : (
+          <OwnedRobots
+            onSelectRobot={(r) => {
+              setSelectedRobot(r);
+              setActiveView("AudioRecorder");
+            }}
+          />
+        );
       case "logDebug":
-        return <ChatLogs />;
+        return selectedRobot ? (
+          <ChatLogs robot={selectedRobot} />
+        ) : (
+          <OwnedRobots
+            onSelectRobot={(r) => {
+              setSelectedRobot(r);
+              setActiveView("logDebug");
+            }}
+          />
+        );
       case "detail":
         return <PlaceholderView title="Detail" />;
       case "admin":
@@ -96,6 +143,11 @@ const AppContent = () => {
             setActiveView={setActiveView}
             user={user}
             onLogout={logout}
+            selectedRobot={selectedRobot}
+            onClearSelectedRobot={() => {
+              setSelectedRobot(null);
+              setActiveView("ownedRobots");
+            }}
           />
         </div>
         {/* Bottom nav bar (mobile) */}
@@ -106,6 +158,11 @@ const AppContent = () => {
             mobile
             user={user}
             onLogout={logout}
+            selectedRobot={selectedRobot}
+            onClearSelectedRobot={() => {
+              setSelectedRobot(null);
+              setActiveView("ownedRobots");
+            }}
           />
         </div>
         {/* Main content area */}
@@ -116,7 +173,17 @@ const AppContent = () => {
           </div>
           {/* RobotStatus - 40%, hidden on mobile */}
           <div className="hidden md:block w-2/5 m-3 max-h-screen">
-            <RobotStatus />
+            {selectedRobot ? (
+              <RobotStatus />
+            ) : (
+              <div className="w-full h-full bg-white rounded-2xl border border-gray-200 flex items-center justify-center p-4">
+                <img
+                  src="/michigreeting.png"
+                  alt="Michi Robot"
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
