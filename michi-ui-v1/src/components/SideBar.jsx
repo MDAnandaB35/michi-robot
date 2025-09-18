@@ -1,5 +1,6 @@
+import React, { useState } from "react";
 import { TestTube2, Wifi, FileText, Database } from "./Icons";
-import { LogOut, User, Shield } from "lucide-react";
+import { LogOut, User, Shield, MoreHorizontal, X } from "lucide-react";
 
 const Sidebar = ({
   activeView,
@@ -10,6 +11,7 @@ const Sidebar = ({
   selectedRobot,
   onClearSelectedRobot,
 }) => {
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   // Define navigation items based on user role
   const getNavItems = () => {
     // Admin users see admin pages only
@@ -34,7 +36,7 @@ const Sidebar = ({
 
   const navItems = getNavItems();
 
-  // User profile component
+  // User profile component (desktop only)
   const UserProfile = ({ user, onLogout }) => (
     <div>
       {/* Return to Owned Robots */}
@@ -73,35 +75,106 @@ const Sidebar = ({
   if (mobile) {
     // Bottom nav bar for mobile
     return (
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 md:hidden">
-        {/* User profile above the navigation */}
-        <div className="px-4 py-2 border-b border-gray-100">
-          <UserProfile user={user} onLogout={onLogout} />
+      <>
+        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 md:hidden">
+          {/* Navigation items */}
+          <nav className="flex justify-around items-center h-16">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.id)}
+                  className={`flex flex-col bg-white items-center justify-center px-2 py-1 transition-colors duration-200 focus:outline-none ${
+                    isActive
+                      ? "text-lime-600"
+                      : "text-gray-500 hover:text-lime-500"
+                  }`}
+                >
+                  <Icon className="h-6 w-6 mb-1" />
+                  <span className="text-xs leading-none">
+                    {item.label.split(" ")[0]}
+                  </span>
+                </button>
+              );
+            })}
+            {/* More menu button */}
+            <button
+              onClick={() => setShowMoreMenu(true)}
+              className="flex flex-col bg-white items-center justify-center px-2 py-1 transition-colors duration-200 focus:outline-none text-gray-500 hover:text-lime-500"
+            >
+              <MoreHorizontal className="h-6 w-6 mb-1" />
+              <span className="text-xs leading-none">More</span>
+            </button>
+          </nav>
         </div>
-        {/* Navigation items */}
-        <nav className="flex justify-around items-center h-16">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveView(item.id)}
-                className={`flex flex-col bg-white items-center justify-center px-2 py-1 transition-colors duration-200 focus:outline-none ${
-                  isActive
-                    ? "text-lime-600"
-                    : "text-gray-500 hover:text-lime-500"
-                }`}
-              >
-                <Icon className="h-6 w-6 mb-1" />
-                <span className="text-xs leading-none">
-                  {item.label.split(" ")[0]}
-                </span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+
+        {/* More Menu Popup */}
+        {showMoreMenu && (
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end justify-center z-50 md:hidden">
+            <div className="bg-white w-full max-w-sm rounded-t-2xl p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  More Options
+                </h3>
+                <button
+                  onClick={() => setShowMoreMenu(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Menu Items */}
+              <div className="space-y-3">
+                {/* Robot Details - only show if robot is selected */}
+                {selectedRobot && (
+                  <button
+                    onClick={() => {
+                      setActiveView("detail");
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    <Database className="h-5 w-5 text-gray-600" />
+                    <span className="text-gray-900">Robot Details</span>
+                  </button>
+                )}
+
+                {/* Return to Owned Robots - only show if robot is selected */}
+                {selectedRobot && activeView !== "ownedRobots" && (
+                  <button
+                    onClick={() => {
+                      onClearSelectedRobot();
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    <Database className="h-5 w-5 text-gray-600" />
+                    <span className="text-gray-900">
+                      Return to Owned Robots
+                    </span>
+                  </button>
+                )}
+
+                {/* Logout */}
+                <button
+                  onClick={() => {
+                    onLogout();
+                    setShowMoreMenu(false);
+                  }}
+                  className="w-full flex items-center space-x-3 p-3 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <LogOut className="h-5 w-5 text-red-600" />
+                  <span className="text-red-600">Logout</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 

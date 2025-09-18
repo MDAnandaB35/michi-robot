@@ -62,13 +62,7 @@ const RobotDetail = ({ robot, onBack, onRobotUpdated, onOwnershipRemoved }) => {
     <div className="flex-1 p-6 bg-gray-50 rounded-lg min-h-full">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center mb-6">
-          <button
-            onClick={onBack}
-            className="mr-4 p-2 hover:bg-gray-200 rounded-full transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 text-gray-600" />
-          </button>
+        <div className="flex items-center mb-6 text-center">
           <h2 className="text-3xl font-bold text-gray-900">Robot Details</h2>
         </div>
 
