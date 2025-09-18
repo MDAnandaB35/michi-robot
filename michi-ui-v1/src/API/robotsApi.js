@@ -24,6 +24,16 @@ export const robotsApi = {
     return data;
   },
 
+  async updateRobotName(robotId, robotName) {
+    const { data } = await api.put(`/robots/${robotId}/name`, { robotName });
+    return data;
+  },
+
+  async removeOwnership(robotId) {
+    const { data } = await api.delete(`/robots/${robotId}/ownership`);
+    return data;
+  },
+
   // Admin only
   async listAll() {
     const { data } = await api.get('/admin/robots');

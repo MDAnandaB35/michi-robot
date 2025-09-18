@@ -10,6 +10,7 @@ import Login from "./components/Login";
 import Admin from "./components/Admin";
 import AdminUsers from "./components/AdminUsers";
 import AdminRobots from "./components/AdminRobots";
+import RobotDetail from "./components/RobotDetail";
 
 const PlaceholderView = ({ title }) => (
   <main className="flex-1 p-8">
@@ -107,7 +108,26 @@ const AppContent = () => {
           />
         );
       case "detail":
-        return <PlaceholderView title="Detail" />;
+        return selectedRobot ? (
+          <RobotDetail
+            robot={selectedRobot}
+            onBack={() => setActiveView("ownedRobots")}
+            onRobotUpdated={(updatedRobot) => {
+              setSelectedRobot(updatedRobot);
+            }}
+            onOwnershipRemoved={(removedRobot) => {
+              setSelectedRobot(null);
+              setActiveView("ownedRobots");
+            }}
+          />
+        ) : (
+          <OwnedRobots
+            onSelectRobot={(r) => {
+              setSelectedRobot(r);
+              setActiveView("detail");
+            }}
+          />
+        );
       case "admin":
         return <Admin />;
       default:

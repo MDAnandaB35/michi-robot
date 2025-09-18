@@ -28,7 +28,7 @@ const Sidebar = ({
       { id: "functionTest", icon: TestTube2, label: "Function Test" },
       { id: "AudioRecorder", icon: Wifi, label: "Audio Recorder" },
       { id: "logDebug", icon: FileText, label: "Chat Log" },
-      { id: "detail", icon: Database, label: "Robot Detail" },
+      { id: "detail", icon: Database, label: "Robot Details" },
     ];
   };
 

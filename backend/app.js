@@ -166,6 +166,51 @@ app.post('/robots/claim', verifyToken, async (req, res) => {
   }
 });
 
+// Update robot name (for robot owners)
+app.put('/robots/:id/name', verifyToken, async (req, res) => {
+  try {
+    const { robotName } = req.body;
+    if (!robotName) return res.status(400).json({ message: 'robotName is required' });
+    
+    const robot = await Robot.findById(req.params.id);
+    if (!robot) return res.status(404).json({ message: 'Robot not found' });
+    
+    // Check if user owns this robot
+    if (!robot.ownerUserIds.some(id => id.toString() === req.user._id.toString())) {
+      return res.status(403).json({ message: 'You do not own this robot' });
+    }
+    
+    robot.robotName = robotName;
+    await robot.save();
+    res.json(robot);
+  } catch (error) {
+    console.error('Error updating robot name:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Remove ownership of a robot (for robot owners)
+app.delete('/robots/:id/ownership', verifyToken, async (req, res) => {
+  try {
+    const robot = await Robot.findById(req.params.id);
+    if (!robot) return res.status(404).json({ message: 'Robot not found' });
+    
+    // Check if user owns this robot
+    if (!robot.ownerUserIds.some(id => id.toString() === req.user._id.toString())) {
+      return res.status(403).json({ message: 'You do not own this robot' });
+    }
+    
+    // Remove user from ownerUserIds array
+    robot.ownerUserIds = robot.ownerUserIds.filter(id => id.toString() !== req.user._id.toString());
+    await robot.save();
+    
+    res.json({ message: 'Ownership removed successfully', robot });
+  } catch (error) {
+    console.error('Error removing robot ownership:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Admin: CRUD robots
 app.get('/admin/robots', verifyAdminToken, async (req, res) => {
   try {
