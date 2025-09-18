@@ -161,7 +161,7 @@ const RagManager = ({ robot }) => {
       </div>
 
       {previewItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] mx-4 flex flex-col">
             <div className="px-5 py-3 border-b flex items-center justify-between">
               <div className="font-semibold text-gray-900 truncate pr-4">

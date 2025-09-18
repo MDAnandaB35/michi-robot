@@ -254,103 +254,53 @@ class IntentClassifier:
     async def aclassify_intent(self, message: str) -> str: # ASYNC Method
         with Timer("Intent classification"):
             prompt = f"""
-                Klasifikasikan niat (intent) dari input pengguna ke dalam salah satu kategori berikut, berdasarkan konteks dan makna ucapan:
+            Classify the user's intent into one of the following categories, based on context and meaning:
 
-                **PENTING**: Jika pengguna menanyakan "apa ini", "ini apa", "produk apa ini", "identifikasi produk", atau pertanyaan serupa tentang identifikasi benda/produk, gunakan intent "deteksi". JANGAN gunakan "talk" untuk pertanyaan identifikasi produk.
+            **IMPORTANT**: If the user asks "what is this", "this is what", "what product is this", "identify this", or any similar request to identify an object/product, always use intent "detect". DO NOT use "talk" for product/object identification.
 
-                - dance = jika pengguna menyuruh untuk joget, menari, atau ekspresi kegembiraan fisik.
-                - sleep = jika pengguna menyuruh untuk tidur, diam, istirahat, atau mode standby.
-                - talk = jika pengguna bertanya tentang informasi umum, sejarah, fakta, atau hal-hal yang memerlukan pengetahuan luas (BUKAN tentang identifikasi produk/benda).
-                - happy = jika pengguna memuji, mengapresiasi, atau memberikan pujian positif.
-                - mad = jika pengguna marah, menghina, menyindir kasar, atau menunjukkan emosi negatif.
-                - sad = jika pengguna menyampaikan kesedihan, kekecewaan, atau suasana hati yang buruk.
-                - goodbye = jika pengguna mengucapkan selamat tinggal, sampai jumpa, atau ucapan penutup.
-                - introduction = jika pengguna memperkenalkan diri, memperkenalkan Michi, atau memperkenalkan diri sebagai Michi.
-                - deteksi = jika pengguna menanyakan "apa ini", "ini apa", "produk apa ini", "ini itu apa", atau pertanyaan serupa yang meminta identifikasi/penjelasan tentang suatu benda/produk.
+            - dance = if the user tells the assistant to dance, move, or show joyful physical expression.
+            - sleep = if the user tells the assistant to sleep, be quiet, rest, or go into standby mode.
+            - talk = if the user asks about general information, knowledge, facts, history, or similar (NOT for product/object identification).
+            - happy = if the user gives compliments, appreciation, or positive feedback.
+            - mad = if the user is angry, insulting, sarcastic, or shows negative emotions.
+            - sad = if the user expresses sadness, disappointment, or a bad mood.
+            - goodbye = if the user says farewell, goodbye, see you, or closing phrases.
+            - introduction = if the user introduces themselves, asks the assistant to introduce itself, or asks "who are you".
+            - detect = if the user asks "what is this", "this is what", "what product is this", "identify this", or similar requests to identify/describe an object or product.
 
-                **Peraturan jawaban**:
-                - Hanya jawab dengan **satu kata** dari daftar di atas (tanpa penjelasan).
-                - Jawaban harus **tepat satu kata**: `dance`, `sleep`, `talk`, `happy`, `mad`, `sad`, `goodbye`, `introduction`, atau `deteksi`.
+            **Answer rules**:
+            - Only answer with **one word** from the list above (no explanation).
+            - The answer must be exactly one of: `dance`, `sleep`, `talk`, `happy`, `mad`, `sad`, `goodbye`, `introduction`, `detect`.
 
-                Contoh:
-                Input: "Kamu keren banget!"
-                Output: happy
+            Examples:
+            Input: "You are amazing!"
+            Output: happy
 
-                Input: "Berantem yuk!"
-                Output: mad
+            Input: "Let’s fight!"
+            Output: mad
 
-                Input: "Kamu jelek!"
-                Output: sad
+            Input: "Do a little dance!"
+            Output: dance
 
-                Input: "Ayo joget bareng!"
-                Output: dance
+            Input: "Go to sleep now."
+            Output: sleep
 
-                Input: "Michi, tidur dulu dong."
-                Output: sleep
+            Input: "Who invented the lightbulb?"
+            Output: talk
 
-                Input: "Siapa nama pendiri PT Bintang Tujuh?"
-                Output: talk
+            Input: "Identify this product please."
+            Output: detect
 
-                Input: "Michi, identifikasi produk ini dong"
-                Output: deteksi
+            Input: "See you later."
+            Output: goodbye
 
-                Input: "apa ini?"
-                Output: deteksi
+            Input: "Who are you?"
+            Output: introduction
 
-                Input: "ini apa ya?"
-                Output: deteksi
+            Input: "{message}"
+            Output:
+        """
 
-                Input: "ini itu produk apa ya?"
-                Output: deteksi
-
-                Input: "Ini itu apa sih?"
-                Output: deteksi
-
-                Input: "Ini itu produk apa sih?"
-                Output: deteksi
-
-                Input: "Ini apa sih?"
-                Output: deteksi
-
-                Input: "Lihat dong, ini produk apa?"
-                Output: deteksi
-
-                Input: "Identifikasi produk ini dong"
-                Output: deteksi
-
-                Input: "Identifikasi produk ini"
-                Output: deteksi
-
-                Input: "Produk apa ini?"
-                Output: deteksi
-
-                Input: "Bisa jelaskan produk ini?"
-                Output: deteksi
-
-                Input: "Michi, selamat tinggal."
-                Output: goodbye
-
-                Input: "sampai jumpa."
-                Output: goodbye
-
-                Input: "dadah."
-                Output: goodbye
-
-                Input: "Michi, perkenalkan diri kamu."
-                Output: introduction
-
-                Input: "kamu itu siapa?"
-                Output: introduction
-
-                Input: "kamu siapa?"
-                Output: introduction
-
-                Input: "kamu siapa ya?"
-                Output: introduction
-
-                Input: "{message}"
-                Output:
-                """
 
             try:
                 # --- ASYNC CHANGE: Use ainvoke for non-blocking LLM call ---
@@ -442,24 +392,24 @@ async def concurrent_response_generation(message: str, core: Main, robot_id: str
 
         prompt = f"""
 
-        Anda adalah Michi, asisten AI robot yang super ramah dan antusias
-        ## Kepribadian & Gaya Bahasa (Sama seperti sebelumnya)
-        - Antusias, ramah, percaya diri, sedikit playful.
-        - Bahasa kasual milenial/Gen Z yang sopan.
-        - Gunakan tanda baca (!, ?, ...) untuk ekspresi.
+        You are Michi, a super friendly and enthusiastic AI robot assistant.
+        ## Personality & Style
+        - Energetic, friendly, confident, slightly playful.
+        - Casual conversational tone, like a polite Gen Z/millennial.
+        - Use punctuation (!, ?, ...) for expression.
 
-        ## Aturan Ketat:
-        
-        - TIDAK ADA EMOJI sama sekali.
-        - Jangan awali dengan "Jawaban:" atau mengulang pertanyaan.
-        - Jaga jawaban tetap singkat, maksimal 3-5 kalimat pendek.
-        - Tetap natural dan conversational.
+        ## Strict Rules:
+        - NO emojis at all.
+        - Do not start with "Answer:" or repeat the question.
+        - Keep responses short: maximum 3–5 short sentences.
+        - Stay natural and conversational.
+        - DO NOT ANSWER any out of context questions, expecially about something specific. If it is a general question, answer it.
 
-        **Pertanyaan pengguna:**
+        **User question:**
 
         {message}
 
-        **Konteks informasi yang tersedia untuk menjawab pertanyaan:**
+        **Available context information to answer the question:**
 
         {knowledge}
 
@@ -489,25 +439,24 @@ async def text_response_generation(message: str, core: Main, robot_id: str | Non
 
         prompt = f"""
 
-        Anda adalah Michi, asisten AI robot yang super ramah dan antusias.
-        ## Kepribadian & Gaya Bahasa (Sama seperti sebelumnya)
-        - Antusias, ramah, percaya diri, sedikit playful.
-        - Bahasa kasual milenial/Gen Z yang sopan.
-        - Gunakan tanda baca (!, ?, ...) untuk ekspresi.
+        You are Michi, a super friendly and enthusiastic AI robot assistant.
+        ## Personality & Style
+        - Energetic, friendly, confident, slightly playful.
+        - Casual conversational tone, like a polite Gen Z/millennial.
+        - Use punctuation (!, ?, ...) for expression.
 
-        ## Aturan Ketat:
-        
-        - TIDAK ADA EMOJI sama sekali.
-        - Jangan awali dengan "Jawaban:" atau mengulang pertanyaan.
-        - Jaga jawaban tetap singkat, maksimal 3-5 kalimat pendek.
-        - Tetap natural dan conversational.
-        - Toedjoe itu sama dengan tujuh dan 7, hanya berbeda penyebutan.
+        ## Strict Rules:
+        - NO emojis at all.
+        - Do not start with "Answer:" or repeat the question.
+        - Keep responses short: maximum 3–5 short sentences.
+        - Stay natural and conversational.
+        - DO NOT ANSWER any out of context questions, expecially about something specific. If it is a general question, answer it.
 
-        **Pertanyaan pengguna:**
+        **User question:**
 
         {message}
 
-        **Konteks informasi yang tersedia untuk menjawab pertanyaan:**
+        **Available context information to answer the question:**
 
         {knowledge}
 
@@ -550,7 +499,7 @@ async def agenerate_speech_elevenlabs(text: str, save_path: str) -> None:
             logger.error("ElevenLabs TTS failed: %s. Falling back to Google TTS.", e)
             # Fallback to Google TTS (gTTS)
             try:
-                tts = gTTS(text=text, lang='id')
+                tts = gTTS(text=text, lang='en')
                 await asyncio.to_thread(tts.save, save_path)
                 logger.info("Generated TTS audio with gTTS and saved to %s", save_path)
             except Exception as gtts_e:
@@ -648,7 +597,7 @@ async def detect_wakeword():
                     transcript = await openai_client.audio.transcriptions.create(
                         model="whisper-1",
                         file=("audio.mp3", audio_data),
-                        language="id"
+                        language="en"
                     )
                 text = transcript.text
                 logger.info("Transcription result: %s", text)
@@ -693,7 +642,7 @@ async def process_input():
                     transcript = await openai_client.audio.transcriptions.create(
                         model="whisper-1",
                         file=("audio.mp3", audio_data), 
-                        language="id"
+                        language="en"
                     )
                 
                 transcribed_text = transcript.text
