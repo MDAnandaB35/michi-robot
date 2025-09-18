@@ -124,11 +124,65 @@
           }
         },
         "response": []
+      },
+      {
+        "name": "RAG - Upload Knowledge (PDF)",
+        "request": {
+          "method": "POST",
+          "header": [],
+          "body": {
+            "mode": "formdata",
+            "formdata": [
+              { "key": "user_id", "value": "{{user_id}}", "type": "text" },
+              { "key": "robot_id", "value": "{{robot_id}}", "type": "text" },
+              { "key": "filename", "value": "sample.pdf", "type": "text" },
+              { "key": "file", "type": "file", "src": "" }
+            ]
+          },
+          "url": {
+            "raw": "{{baseUrl}}/rag/knowledge",
+            "host": ["{{baseUrl}}"],
+            "path": ["rag", "knowledge"]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "RAG - List Knowledge [user_id, robot_id]",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "{{baseUrl}}/rag/knowledge?user_id={{user_id}}&robot_id={{robot_id}}",
+            "host": ["{{baseUrl}}"],
+            "path": ["rag", "knowledge"],
+            "query": [
+              { "key": "user_id", "value": "{{user_id}}" },
+              { "key": "robot_id", "value": "{{robot_id}}" }
+            ]
+          }
+        },
+        "response": []
+      },
+      {
+        "name": "RAG - Delete Knowledge by ID",
+        "request": {
+          "method": "DELETE",
+          "header": [],
+          "url": {
+            "raw": "{{baseUrl}}/rag/knowledge/{{knowledge_id}}",
+            "host": ["{{baseUrl}}"],
+            "path": ["rag", "knowledge", "{{knowledge_id}}"]
+          }
+        },
+        "response": []
       }
     ],
     "variable": [
       { "key": "baseUrl", "value": "http://localhost:5000", "type": "string" },
-      { "key": "robot_id", "value": "ROBOT-123", "type": "string" }
+      { "key": "robot_id", "value": "ROBOT-123", "type": "string" },
+      { "key": "user_id", "value": "USER-123", "type": "string" },
+      { "key": "knowledge_id", "value": "", "type": "string" }
     ]
   }
   

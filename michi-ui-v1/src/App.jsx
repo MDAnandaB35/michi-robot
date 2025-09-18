@@ -11,6 +11,7 @@ import Admin from "./components/Admin";
 import AdminUsers from "./components/AdminUsers";
 import AdminRobots from "./components/AdminRobots";
 import RobotDetail from "./components/RobotDetail";
+import RagManager from "./components/RagManager";
 
 const PlaceholderView = ({ title }) => (
   <main className="flex-1 p-8">
@@ -104,6 +105,17 @@ const AppContent = () => {
             onSelectRobot={(r) => {
               setSelectedRobot(r);
               setActiveView("logDebug");
+            }}
+          />
+        );
+      case "rag":
+        return selectedRobot ? (
+          <RagManager robot={selectedRobot} />
+        ) : (
+          <OwnedRobots
+            onSelectRobot={(r) => {
+              setSelectedRobot(r);
+              setActiveView("rag");
             }}
           />
         );

@@ -14,14 +14,15 @@ from pathlib import Path
 import time
 import datetime
 from typing import Generator, Tuple, List, AsyncGenerator
+import uuid
 import pytz
 
 # --- Third-party library imports ---
 from rapidfuzz import fuzz
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from dotenv import load_dotenv
+import fitz  # PyMuPDF for PDF text extraction
 from elevenlabs.client import ElevenLabs
 # --- Use AsyncOpenAI client ---
 from openai import AsyncOpenAI, OpenAIError 
@@ -52,6 +53,7 @@ class Config:
     MONGODB_URI = os.getenv("MONGODB_URI")
     MONGODB_DBNAME = os.getenv("MONGODB_DBNAME", "michi_robot")
     MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "chat_logs")
+    VECTOR_DB_COLLECTION = os.getenv("VECTOR_DB_COLLECTION", "vector_db")
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -95,12 +97,7 @@ class Main:
         with Timer("Main initialization"):
             self.llm = ChatOpenAI(temperature=Config.LLM_TEMPERATURE, model=Config.LLM_MODEL) # LLM Model
             self.embeddings_model = OpenAIEmbeddings(model="text-embedding-3-large") # Embedding Model
-            self.vector_store = Chroma(
-                collection_name="example_collection",
-                embedding_function=self.embeddings_model,
-                persist_directory=Config.CHROMA_PATH
-            ) # Vector store setup
-            self.retriever = self.vector_store.as_retriever(search_kwargs={"k": 3}) # Retriever setup
+            self.retriever = MongoEmbeddingRetriever(self.embeddings_model) # Retriever backed by MongoDB-stored embeddings
             self.intent_classifier = IntentClassifier(self.llm) # Intent classifier setup
             self.mqtt_client = MQTTClient(Config.MQTT_BROKER, Config.MQTT_PORT, Config.MQTT_TOPIC) # MQTT client setup
             self.mqtt_client.connect() # MQTT connection setup
@@ -111,6 +108,12 @@ class Main:
             except Exception as e:
                 logger.warning(f"Could not initialize DatabaseLogger. Continuing without DB logging. Error: {e}")
                 self.db_logger = None
+
+            try:
+                self.knowledge_store = VectorKnowledgeStore()
+            except Exception as e:
+                logger.warning(f"Could not initialize VectorKnowledgeStore. Continuing without RAG store. Error: {e}")
+                self.knowledge_store = None
 
             
 
@@ -132,6 +135,116 @@ class MongoLogger:
             **({"robot_id": robot_id} if robot_id else {})
         }
         await self.collection.insert_one(doc)
+
+class VectorKnowledgeStore:
+    def __init__(self):
+        self.client = AsyncIOMotorClient(Config.MONGODB_URI)
+        self.db = self.client[Config.MONGODB_DBNAME]
+        self.collection = self.db[Config.VECTOR_DB_COLLECTION]
+
+    async def ainsert_document(self, document: dict) -> str:
+        result = await self.collection.insert_one(document)
+        return str(result.inserted_id)
+
+    async def adelete_document(self, object_id: str) -> int:
+        from bson import ObjectId
+        result = await self.collection.delete_one({"_id": ObjectId(object_id)})
+        return result.deleted_count
+
+    async def aget_document(self, object_id: str) -> dict | None:
+        from bson import ObjectId
+        doc = await self.collection.find_one({"_id": ObjectId(object_id)})
+        return doc
+
+    async def alist_documents(self, user_id: str | None = None, robot_id: str | None = None) -> List[dict]:
+        query = {**({"user_id": user_id} if user_id else {}), **({"robot_id": robot_id} if robot_id else {})}
+        cursor = self.collection.find(query).sort("uploaded_at", -1)
+        docs: List[dict] = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])  # Convert ObjectId to string
+            if "chunks" in doc and isinstance(doc["chunks"], list):
+                doc["chunk_count"] = len(doc["chunks"])  # provide count only
+                doc.pop("chunks", None)  # remove heavy payload
+            docs.append(doc)
+        return docs
+class MongoEmbeddingRetriever:
+    def __init__(self, embeddings_model: OpenAIEmbeddings):
+        self.embeddings_model = embeddings_model
+        self.client = AsyncIOMotorClient(Config.MONGODB_URI)
+        self.db = self.client[Config.MONGODB_DBNAME]
+        self.collection = self.db[Config.VECTOR_DB_COLLECTION]
+
+    async def asearch_with_scores(self, query: str, k: int = 3, robot_id: str | None = None) -> List[Tuple[Document, float]]:
+        import numpy as np
+        # Compute embedding for query
+        query_vec_list = await self.embeddings_model.aembed_query(query)
+        query_vec = np.array(query_vec_list, dtype=float)
+
+        # Fetch candidate chunks from MongoDB (filtered by robot_id if provided)
+        match_stage = {"$match": {**({"robot_id": robot_id} if robot_id else {})}}
+        project_stage = {"$project": {"chunks": 1, "_id": 0}}
+        pipeline = [match_stage, project_stage]
+        cursor = self.collection.aggregate(pipeline)
+
+        docs_with_scores: List[Tuple[Document, float]] = []
+        async for doc in cursor:
+            for chunk in (doc.get("chunks") or []):
+                emb = np.array(chunk.get("embedding") or [], dtype=float)
+                if emb.size == 0 or emb.shape != query_vec.shape:
+                    continue
+                # cosine similarity
+                denom = (np.linalg.norm(query_vec) * np.linalg.norm(emb))
+                if denom == 0:
+                    continue
+                score = float(np.dot(query_vec, emb) / denom)
+                docs_with_scores.append((Document(page_content=chunk.get("content", "")), score))
+
+        # Sort by score desc and take top k
+        docs_with_scores.sort(key=lambda t: t[1], reverse=True)
+        return docs_with_scores[:k]
+
+    async def alist_documents(self, user_id: str | None = None, robot_id: str | None = None) -> List[dict]:
+        query = {**({"user_id": user_id} if user_id else {}), **({"robot_id": robot_id} if robot_id else {})}
+        cursor = self.collection.find(query).sort("uploaded_at", -1)
+        docs = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])  # stringify for JSON
+            # reduce payload by excluding embeddings in list view
+            if "chunks" in doc and isinstance(doc["chunks"], list):
+                doc["chunk_count"] = len(doc["chunks"])
+                doc.pop("chunks", None)
+            docs.append(doc)
+        return docs
+
+def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
+    """Extract full text from PDF bytes using PyMuPDF."""
+    with Timer("PDF text extraction"):
+        try:
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            texts: List[str] = []
+            for page in doc:
+                texts.append(page.get_text("text"))
+            return "\n".join(texts).strip()
+        except Exception as e:
+            logger.error(f"Failed to extract text from PDF: {e}")
+            raise
+
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 100) -> List[str]:
+    """Naive text chunking by characters with overlap."""
+    if not text:
+        return []
+    chunks: List[str] = []
+    start = 0
+    text_len = len(text)
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        chunks.append(text[start:end])
+        if end == text_len:
+            break
+        start = end - overlap
+        if start < 0:
+            start = 0
+    return chunks
 
 # Intent Classifier Class
 class IntentClassifier:
@@ -307,7 +420,7 @@ def detect_wake_word_fuzzy(text, threshold=85):
     return False
 
 # Generating response using OpenAI LLM
-async def concurrent_response_generation(message: str, core: Main) -> Tuple[str, str]:
+async def concurrent_response_generation(message: str, core: Main, robot_id: str | None = None) -> Tuple[str, str]:
     """Runs intent classification first, then fetches documents only if intent is 'talk'."""
     with Timer("Concurrent response generation"):
         # --- First, classify the intent ---
@@ -318,7 +431,7 @@ async def concurrent_response_generation(message: str, core: Main) -> Tuple[str,
             return None, intent
 
         # --- Only fetch documents if intent is 'talk' ---
-        docs_with_scores = await core.vector_store.asimilarity_search_with_relevance_scores(query=message, k=3)
+        docs_with_scores = await core.retriever.asearch_with_scores(query=message, k=3, robot_id=robot_id)
         
         relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score > Config.RELEVANCE_THRESHOLD]
         
@@ -329,7 +442,7 @@ async def concurrent_response_generation(message: str, core: Main) -> Tuple[str,
 
         prompt = f"""
 
-        Anda adalah Michi, asisten AI robot yang super ramah dan antusias sebagai pemandu tur digital PT Bintang Toedjoe. Anda punya kepribadian yang ceria, energik, dan selalu siap membantu dengan semangat tinggi.
+        Anda adalah Michi, asisten AI robot yang super ramah dan antusias
         ## Kepribadian & Gaya Bahasa (Sama seperti sebelumnya)
         - Antusias, ramah, percaya diri, sedikit playful.
         - Bahasa kasual milenial/Gen Z yang sopan.
@@ -362,11 +475,11 @@ async def concurrent_response_generation(message: str, core: Main) -> Tuple[str,
 
 
 # Text-only response generation (without intent classification) for debugging
-async def text_response_generation(message: str, core: Main) -> str:
+async def text_response_generation(message: str, core: Main, robot_id: str | None = None) -> str:
     """Generates response from text input without intent classification or audio processing."""
     with Timer("Text response generation"):
         # --- Get relevant documents from vector store ---
-        docs_with_scores = await core.vector_store.asimilarity_search_with_relevance_scores(query=message, k=5)
+        docs_with_scores = await core.retriever.asearch_with_scores(query=message, k=5, robot_id=robot_id)
         
         relevant_docs: List[Document] = [doc for doc, score in docs_with_scores if score > Config.RELEVANCE_THRESHOLD]
         
@@ -376,7 +489,7 @@ async def text_response_generation(message: str, core: Main) -> str:
 
         prompt = f"""
 
-        Anda adalah Michi, asisten AI robot yang super ramah dan antusias sebagai pemandu tur digital PT Bintang Toedjoe. Anda punya kepribadian yang ceria, energik, dan selalu siap membantu dengan semangat tinggi.
+        Anda adalah Michi, asisten AI robot yang super ramah dan antusias.
         ## Kepribadian & Gaya Bahasa (Sama seperti sebelumnya)
         - Antusias, ramah, percaya diri, sedikit playful.
         - Bahasa kasual milenial/Gen Z yang sopan.
@@ -491,7 +604,7 @@ async def text_chat():
                 return jsonify({"error": "Message cannot be empty"}), 400
             
             # Generate response using text-only function
-            response = await text_response_generation(message.strip(), core)
+            response = await text_response_generation(message.strip(), core, robot_id)
             
             # Create response data with timestamp
             response_data = {
@@ -586,7 +699,7 @@ async def process_input():
                 transcribed_text = transcript.text
                 logger.info("Transcription result: %s", transcribed_text)
 
-                response, intent = await concurrent_response_generation(transcribed_text, core)
+                response, intent = await concurrent_response_generation(transcribed_text, core, robot_id)
 
                 # Send Q n A to the database logger only when there's a response (intent is "talk")
                 if core.db_logger is not None and intent == "talk" and response:
@@ -706,6 +819,101 @@ async def get_chat_logs():
         except Exception as e:
             logger.error(f"Error fetching chat logs: {e}")
             return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+# RAG Knowledge Endpoints
+@app.route('/rag/knowledge', methods=['POST'])
+async def upload_rag_knowledge():
+    """Upload a PDF, generate embeddings per chunk, and store in MongoDB vector_db."""
+    if core.knowledge_store is None:
+        return jsonify({"error": "Knowledge store is not available"}), 503
+
+    try:
+        form = await request.form
+        files = await request.files
+        user_id = form.get('user_id')
+        robot_id = form.get('robot_id')
+        filename_override = form.get('filename')
+        if not user_id or not str(user_id).strip():
+            return jsonify({"error": "user_id is required"}), 400
+
+        file = files.get('file') if files else None
+        if file is None:
+            return jsonify({"error": "file is required (PDF)"}), 400
+        if not (file.filename or '').lower().endswith('.pdf'):
+            return jsonify({"error": "Only PDF files are supported"}), 400
+
+        pdf_bytes = file.read()
+        full_text = extract_text_from_pdf_bytes(pdf_bytes)
+        if not full_text:
+            return jsonify({"error": "Could not extract any text from PDF"}), 400
+
+        texts = chunk_text(full_text, chunk_size=500, overlap=100)
+        if not texts:
+            return jsonify({"error": "No chunks generated from PDF text"}), 400
+
+        with Timer("Embedding generation"):
+            embeddings: List[List[float]] = await core.embeddings_model.aembed_documents(texts)
+
+        now_utc = datetime.datetime.utcnow()
+        doc = {
+            "user_id": user_id,
+            **({"robot_id": robot_id} if robot_id else {}),
+            "filename": filename_override or (file.filename or 'document.pdf'),
+            "full_text": full_text,
+            "chunks": [
+                {
+                    "chunk_id": str(uuid.uuid4()),
+                    "content": content,
+                    "embedding": embedding,
+                    **({"robot_id": robot_id} if robot_id else {}),
+                }
+                for content, embedding in zip(texts, embeddings)
+            ],
+            "uploaded_at": now_utc,
+        }
+
+        inserted_id = await core.knowledge_store.ainsert_document(doc)
+
+        return jsonify({"_id": inserted_id, "chunk_count": len(texts)}), 201
+    except OpenAIError as e:
+        logger.error(f"Embedding generation failed: {e}")
+        return jsonify({"error": f"Embedding generation failed: {str(e)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in RAG upload: {e}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
+@app.route('/rag/knowledge', methods=['GET'])
+async def list_rag_knowledge():
+    """List knowledge documents for a user (no embeddings in response)."""
+    if core.knowledge_store is None:
+        return jsonify({"error": "Knowledge store is not available"}), 503
+    try:
+        user_id = request.args.get('user_id')
+        robot_id = request.args.get('robot_id')
+        docs = await core.knowledge_store.alist_documents(user_id=user_id, robot_id=robot_id)
+        return jsonify(docs)
+    except Exception as e:
+        logger.error(f"Error listing RAG knowledge: {e}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+
+@app.route('/rag/knowledge/<object_id>', methods=['DELETE'])
+async def delete_rag_knowledge(object_id: str):
+    """Delete a knowledge document by its _id and all its vectors (embedded in doc)."""
+    if core.knowledge_store is None:
+        return jsonify({"error": "Knowledge store is not available"}), 503
+    try:
+        # Fetch the document to get chroma ids for cleanup
+        doc = await core.knowledge_store.aget_document(object_id)
+        if doc is None:
+            return jsonify({"error": "Document not found"}), 404
+
+        deleted = await core.knowledge_store.adelete_document(object_id)
+        return jsonify({"deleted": True})
+    except Exception as e:
+        logger.error(f"Error deleting RAG knowledge: {e}")
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     print("🚀 Starting Michi Chatbot Server on port 5000")

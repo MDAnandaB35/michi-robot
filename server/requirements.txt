@@ -7,10 +7,11 @@ pydub
 quart-cors
 langchain
 langchain-openai
-langchain-chroma
+numpy
 openai
 rapidfuzz
 elevenlabs
 gtts
+pymupdf
 # Optional: For MySQL support (alpha.py/full_integration.py only)
 # mysql-connector-python
